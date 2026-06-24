@@ -466,8 +466,8 @@ const scene3d = {
   frameId: null,
   zBuffer: [],
   touch: {
-    move: 0,
-    turn: 0,
+    x: 0,
+    y: 0,
     lookDragId: null,
     lookDragX: 0,
   },
@@ -743,8 +743,7 @@ function initTouchControls() {
     document.documentElement?.classList?.add("has-touch-controls");
   }
   bindTouchPad(dom.movePad, dom.moveKnob, "move");
-  bindTouchPad(dom.lookPad, dom.lookKnob, "turn");
-  bindViewportLookDrag();
+  bindActionPad(dom.lookPad, dom.lookKnob);
 }
 
 function isTouchCapableDevice() {
@@ -782,9 +781,8 @@ function bindTouchPad(pad, knob, type) {
 
     knob.style.transform = `translate3d(${normalizedX * 82}%, ${normalizedY * 82}%, 0)`;
     if (type === "move") {
-      scene3d.touch.move = clamp(-normalizedY, -1, 1);
-    } else {
-      scene3d.touch.turn = clamp(normalizedX, -1, 1);
+      scene3d.touch.x = normalizedX;
+      scene3d.touch.y = normalizedY;
     }
   };
 
@@ -794,9 +792,8 @@ function bindTouchPad(pad, knob, type) {
     }
     knob.style.transform = "translate3d(0, 0, 0)";
     if (type === "move") {
-      scene3d.touch.move = 0;
-    } else {
-      scene3d.touch.turn = 0;
+      scene3d.touch.x = 0;
+      scene3d.touch.y = 0;
     }
   };
 
@@ -816,6 +813,33 @@ function bindTouchPad(pad, knob, type) {
   pad.addEventListener("lostpointercapture", reset);
   pad.addEventListener("touchstart", update, { passive: false });
   pad.addEventListener("touchmove", update, { passive: false });
+  pad.addEventListener("touchend", reset, { passive: false });
+  pad.addEventListener("touchcancel", reset, { passive: false });
+}
+
+function bindActionPad(pad, knob) {
+  if (!pad || !knob || typeof pad.addEventListener !== "function") {
+    return;
+  }
+
+  const press = (event) => {
+    if (typeof event.preventDefault === "function") {
+      event.preventDefault();
+    }
+    knob.style.transform = "translate3d(0, -18%, 0) scale(0.9)";
+    interactWithNearbyProp();
+  };
+  const reset = (event) => {
+    if (event && typeof event.preventDefault === "function") {
+      event.preventDefault();
+    }
+    knob.style.transform = "translate3d(0, 0, 0)";
+  };
+
+  pad.addEventListener("pointerdown", press);
+  pad.addEventListener("pointerup", reset);
+  pad.addEventListener("pointercancel", reset);
+  pad.addEventListener("touchstart", press, { passive: false });
   pad.addEventListener("touchend", reset, { passive: false });
   pad.addEventListener("touchcancel", reset, { passive: false });
 }
@@ -914,7 +938,7 @@ function getTouchPoint(event) {
 
 function reset3DPlayer(roomName) {
   const start = scenes3d[roomName]?.start || scenes3d.foyer.start;
-  scene3d.player = { ...start };
+  scene3d.player = { ...start, facingX: 0, facingY: 1 };
   scene3d.room = roomName;
 }
 
@@ -931,25 +955,26 @@ function update3D(delta) {
     reset3DPlayer(state.room);
   }
 
-  const turnSpeed = 2.25;
-  const moveSpeed = state.battery < 20 ? 1.05 : 1.45;
+  const moveSpeed = state.battery < 20 ? 1.6 : 2.25;
   const player = scene3d.player;
-  const keyTurn = (scene3d.keys.has("d") || scene3d.keys.has("arrowright") ? 1 : 0)
+  const keyX = (scene3d.keys.has("d") || scene3d.keys.has("arrowright") ? 1 : 0)
     - (scene3d.keys.has("a") || scene3d.keys.has("arrowleft") ? 1 : 0);
-  const keyMove = (scene3d.keys.has("w") || scene3d.keys.has("arrowup") ? 1 : 0)
-    - (scene3d.keys.has("s") || scene3d.keys.has("arrowdown") ? 1 : 0);
-  const turnInput = clamp(keyTurn + scene3d.touch.turn, -1, 1);
-  const direction = clamp(keyMove + scene3d.touch.move, -1, 1);
+  const keyY = (scene3d.keys.has("s") || scene3d.keys.has("arrowdown") ? 1 : 0)
+    - (scene3d.keys.has("w") || scene3d.keys.has("arrowup") ? 1 : 0);
+  let inputX = clamp(keyX + scene3d.touch.x, -1, 1);
+  let inputY = clamp(keyY + scene3d.touch.y, -1, 1);
+  const length = Math.hypot(inputX, inputY);
 
-  if (turnInput !== 0) {
-    player.angle += turnInput * turnSpeed * delta;
+  if (length > 1) {
+    inputX /= length;
+    inputY /= length;
   }
 
-  if (direction !== 0) {
-    const step = direction * moveSpeed * delta;
-    const nextX = player.x + Math.cos(player.angle) * step;
-    const nextY = player.y + Math.sin(player.angle) * step;
-    move3DPlayer(scene, nextX, nextY);
+  if (length > 0.08) {
+    player.facingX = inputX;
+    player.facingY = inputY;
+    const step = moveSpeed * delta;
+    move3DPlayer(scene, player.x + inputX * step, player.y + inputY * step);
   }
 }
 
@@ -986,10 +1011,324 @@ function render3D() {
     return;
   }
 
-  draw3DBackground(ctx, scene, width, height);
-  draw3DWalls(ctx, scene, width, height);
-  draw3DProps(ctx, scene, width, height);
-  draw3DAtmosphere(ctx, scene, width, height);
+  const layout = getTopdownLayout(scene, width, height);
+  drawTopdownBackground(ctx, scene, width, height);
+  drawTopdownMap(ctx, scene, layout);
+  drawTopdownProps(ctx, scene, layout);
+  drawTopdownPlayer(ctx, layout);
+  drawTopdownHud(ctx, scene, layout, width, height);
+}
+
+function getTopdownLayout(scene, width, height) {
+  const mapWidth = scene.map[0].length;
+  const mapHeight = scene.map.length;
+  const tile = Math.floor(Math.min(width / (mapWidth + 2.2), height / (mapHeight + 2.2)));
+  return {
+    tile,
+    mapWidth,
+    mapHeight,
+    originX: Math.floor((width - mapWidth * tile) / 2),
+    originY: Math.floor((height - mapHeight * tile) / 2),
+  };
+}
+
+function worldToScreen(layout, x, y) {
+  return {
+    x: layout.originX + x * layout.tile,
+    y: layout.originY + y * layout.tile,
+  };
+}
+
+function drawTopdownBackground(ctx, scene, width, height) {
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, "#08060a");
+  gradient.addColorStop(0.46, scene.ceiling);
+  gradient.addColorStop(1, "#020203");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = scene.fog;
+  ctx.fillRect(0, 0, width, height);
+}
+
+function drawTopdownMap(ctx, scene, layout) {
+  const { tile, mapWidth, mapHeight, originX, originY } = layout;
+  ctx.save();
+  ctx.shadowBlur = tile * 0.45;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+  ctx.fillRect(originX - tile * 0.38, originY - tile * 0.38, mapWidth * tile + tile * 0.76, mapHeight * tile + tile * 0.76);
+  ctx.restore();
+
+  for (let y = 0; y < mapHeight; y += 1) {
+    for (let x = 0; x < mapWidth; x += 1) {
+      const screenX = originX + x * tile;
+      const screenY = originY + y * tile;
+      const isWall = scene.map[y][x] !== "0";
+      if (isWall) {
+        ctx.fillStyle = scene.wall;
+        ctx.fillRect(screenX, screenY, tile, tile);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.38)";
+        ctx.fillRect(screenX, screenY + tile * 0.72, tile, tile * 0.28);
+        ctx.strokeStyle = "rgba(246, 222, 192, 0.08)";
+        ctx.strokeRect(screenX + 0.5, screenY + 0.5, tile - 1, tile - 1);
+      } else {
+        ctx.fillStyle = scene.floor;
+        ctx.fillRect(screenX, screenY, tile, tile);
+        ctx.fillStyle = ((x + y) % 2 === 0) ? "rgba(255, 255, 255, 0.025)" : "rgba(0, 0, 0, 0.08)";
+        ctx.fillRect(screenX, screenY, tile, tile);
+        ctx.strokeStyle = "rgba(246, 222, 192, 0.035)";
+        ctx.strokeRect(screenX + 0.5, screenY + 0.5, tile - 1, tile - 1);
+      }
+    }
+  }
+}
+
+function drawTopdownProps(ctx, scene, layout) {
+  getVisible3DProps(scene)
+    .slice()
+    .sort((a, b) => a.y - b.y)
+    .forEach((prop) => drawTopdownProp(ctx, prop, layout));
+}
+
+function drawTopdownProp(ctx, prop, layout) {
+  const point = worldToScreen(layout, prop.x, prop.y);
+  const size = layout.tile * (prop.size || 1) * 0.56;
+  const nearby = getNearbyProp()?.prop === prop;
+
+  ctx.save();
+  ctx.translate(point.x, point.y);
+  ctx.shadowColor = nearby ? "rgba(217, 161, 95, 0.65)" : "rgba(0, 0, 0, 0.55)";
+  ctx.shadowBlur = nearby ? size * 0.55 : size * 0.22;
+
+  const colors = {
+    door: "#3a1d22",
+    plate: "#5b3724",
+    cabinet: "#3d2a20",
+    shelves: "#33261f",
+    lamp: state.flags.has("archiveLit") ? "#e3a84f" : "#59412a",
+    mirror: "#87a99e",
+    tape: "#1b1417",
+    fridge: state.flags.has("openedFridge") ? "#a7f4d4" : "#30413a",
+    sink: "#646154",
+    bed: "#4a2740",
+    doll: state.flags.has("foundDoll") ? "rgba(199, 180, 155, 0.26)" : "#c7b49b",
+    musicbox: "#6a3d26",
+    closet: "#321923",
+    stairs: "#211915",
+    well: "#11140f",
+    salt: "#f5edd3",
+    shadow: "rgba(0, 0, 0, 0.82)",
+  };
+
+  ctx.fillStyle = colors[prop.type] || "#6a4b3e";
+  if (prop.type === "salt") {
+    ctx.strokeStyle = colors.salt;
+    ctx.lineWidth = Math.max(2, layout.tile * 0.045);
+    ctx.setLineDash([layout.tile * 0.16, layout.tile * 0.1]);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size * 0.85, size * 0.36, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  } else if (prop.type === "well") {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size * 0.8, size * 0.58, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#020202";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size * 0.48, size * 0.31, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (prop.type === "shadow") {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size * 0.34, size * 0.62, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 245, 220, 0.52)";
+    ctx.fillRect(-size * 0.12, -size * 0.2, size * 0.08, size * 0.05);
+    ctx.fillRect(size * 0.05, -size * 0.2, size * 0.08, size * 0.05);
+  } else {
+    ctx.beginPath();
+    ctx.rect(-size * 0.5, -size * 0.42, size, size * 0.84);
+    ctx.fill();
+    ctx.strokeStyle = nearby ? "rgba(255, 239, 179, 0.92)" : "rgba(246, 222, 192, 0.18)";
+    ctx.lineWidth = Math.max(1, layout.tile * 0.025);
+    ctx.stroke();
+    drawTopdownPropGlyph(ctx, prop, size);
+  }
+
+  if (nearby) {
+    ctx.strokeStyle = "rgba(255, 239, 179, 0.9)";
+    ctx.lineWidth = Math.max(1, layout.tile * 0.035);
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.82, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawTopdownPropGlyph(ctx, prop, size) {
+  const glyphs = {
+    door: "13",
+    plate: "13",
+    cabinet: "柜",
+    shelves: "档",
+    lamp: "灯",
+    mirror: "镜",
+    tape: "带",
+    fridge: "冰",
+    sink: "槽",
+    bed: "床",
+    doll: "偶",
+    musicbox: "盒",
+    closet: "柜",
+    stairs: "梯",
+  };
+  const glyph = prop.label || glyphs[prop.type];
+  if (!glyph) {
+    return;
+  }
+  ctx.fillStyle = prop.type === "fridge" && state.flags.has("openedFridge") ? "#071512" : "rgba(255, 244, 224, 0.88)";
+  ctx.font = `${Math.max(12, size * 0.34)}px serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(glyph, 0, 0);
+}
+
+function drawTopdownPlayer(ctx, layout) {
+  const point = worldToScreen(layout, scene3d.player.x, scene3d.player.y);
+  const size = layout.tile * 0.36;
+  const pulse = Math.sin(Date.now() / 180) * layout.tile * 0.025;
+
+  ctx.save();
+  ctx.translate(point.x, point.y + pulse);
+  ctx.shadowColor = "rgba(217, 161, 95, 0.45)";
+  ctx.shadowBlur = size * 0.9;
+  ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+  ctx.beginPath();
+  ctx.ellipse(0, size * 0.55, size * 0.78, size * 0.28, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#eed7b7";
+  ctx.beginPath();
+  ctx.arc(0, -size * 0.48, size * 0.34, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#67202a";
+  ctx.beginPath();
+  ctx.rect(-size * 0.42, -size * 0.14, size * 0.84, size * 0.82);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(255, 239, 179, 0.75)";
+  ctx.lineWidth = Math.max(2, layout.tile * 0.035);
+  ctx.beginPath();
+  ctx.moveTo(0, -size * 0.08);
+  ctx.lineTo(scene3d.player.facingX * size * 0.9, scene3d.player.facingY * size * 0.9 - size * 0.08);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawTopdownHud(ctx, scene, layout, width, height) {
+  const player = worldToScreen(layout, scene3d.player.x, scene3d.player.y);
+  const light = ctx.createRadialGradient(player.x, player.y, layout.tile * 0.6, player.x, player.y, layout.tile * (state.battery < 20 ? 3 : 4.8));
+  light.addColorStop(0, "rgba(255, 229, 168, 0.16)");
+  light.addColorStop(0.5, "rgba(0, 0, 0, 0)");
+  light.addColorStop(1, "rgba(0, 0, 0, 0.78)");
+  ctx.fillStyle = light;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = `rgba(179, 38, 53, ${state.dread / 420})`;
+  ctx.fillRect(0, 0, width, height);
+
+  const nearby = getNearbyProp();
+  if (nearby?.action) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
+    ctx.fillRect(width / 2 - layout.tile * 2.8, height - layout.tile * 1.1, layout.tile * 5.6, layout.tile * 0.62);
+    ctx.strokeStyle = "rgba(217, 161, 95, 0.45)";
+    ctx.strokeRect(width / 2 - layout.tile * 2.8, height - layout.tile * 1.1, layout.tile * 5.6, layout.tile * 0.62);
+    ctx.fillStyle = "#f8e4bf";
+    ctx.font = `${Math.max(12, layout.tile * 0.22)}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`靠近：${nearby.label}`, width / 2, height - layout.tile * 0.79);
+  }
+}
+
+function getNearbyProp() {
+  const scene = scenes3d[state.room];
+  if (!scene) {
+    return null;
+  }
+  let nearest = null;
+  scene.props.forEach((prop) => {
+    const action = getPropAction(prop);
+    if (!action) {
+      return;
+    }
+    const distance = Math.hypot(prop.x - scene3d.player.x, prop.y - scene3d.player.y);
+    if (distance <= 1.18 && (!nearest || distance < nearest.distance)) {
+      nearest = { prop, action, distance, label: action.label };
+    }
+  });
+  return nearest;
+}
+
+function getPropAction(prop) {
+  const room = rooms[state.room];
+  if (!room) {
+    return null;
+  }
+  const actionId = getPropActionId(prop);
+  if (!actionId) {
+    return null;
+  }
+  return room.actions.find((action) => action.id === actionId) || null;
+}
+
+function getPropActionId(prop) {
+  if (state.room === "foyer") {
+    if (prop.type === "plate" || prop.type === "door") return "plate";
+    if (prop.type === "cabinet") return "cabinet";
+  }
+  if (state.room === "archive") {
+    if (prop.type === "lamp") return "lamp";
+    if (prop.type === "mirror") return "mirror";
+    if (prop.type === "tape") return "tape";
+  }
+  if (state.room === "kitchen") {
+    if (prop.type === "sink") return "sink";
+    if (prop.type === "fridge") return "fridge";
+  }
+  if (state.room === "childroom") {
+    if (prop.type === "doll" || prop.type === "bed") return "doll";
+    if (prop.type === "musicbox") return "music";
+    if (prop.type === "closet") return "closet";
+  }
+  if (state.room === "basement") {
+    if (prop.type === "salt") return "ritual";
+    if (prop.type === "well") return state.flags.has("saltCircle") ? "ritual" : "listenWell";
+    if (prop.type === "stairs") return "circle";
+  }
+  return null;
+}
+
+function interactWithNearbyProp() {
+  if (!state.running || state.ritual.active) {
+    return;
+  }
+  const nearby = getNearbyProp();
+  if (!nearby?.action) {
+    game.log("你伸手摸了摸空气。这里没有可以调查的东西。");
+    render();
+    return;
+  }
+  const action = nearby.action;
+  const alreadyDone = action.once && state.flags.has(action.once);
+  const enabled = !alreadyDone && (!action.enabled || action.enabled(state));
+  if (!enabled) {
+    game.log(action.disabledText ? `还不能这么做：${action.disabledText}。` : "现在还不能这么做。");
+    render();
+    return;
+  }
+  runAction(action);
 }
 
 function resize3DCanvas() {
