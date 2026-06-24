@@ -302,6 +302,7 @@ const dom = {
   batteryMeter: document.getElementById("batteryMeter"),
   dreadValue: document.getElementById("dreadValue"),
   dreadMeter: document.getElementById("dreadMeter"),
+  viewport3d: document.getElementById("viewport3d"),
   roomVisual: document.getElementById("roomVisual"),
   roomName: document.getElementById("roomName"),
   roomDescription: document.getElementById("roomDescription"),
@@ -324,6 +325,142 @@ const flagVisualClasses = [
   "foundDoll",
   "saltCircle",
 ];
+
+const scenes3d = {
+  foyer: {
+    start: { x: 4.5, y: 6.7, angle: -Math.PI / 2 },
+    wall: "#43262b",
+    floor: "#17100f",
+    ceiling: "#130b10",
+    fog: "rgba(155, 54, 64, 0.22)",
+    map: [
+      "111111111",
+      "100000001",
+      "100000001",
+      "100000001",
+      "100000001",
+      "100000001",
+      "100000001",
+      "100000001",
+      "111111111",
+    ],
+    props: [
+      { type: "door", x: 4.5, y: 1.25, size: 1.35, label: "13" },
+      { type: "plate", x: 6.35, y: 2.0, size: 0.62, label: "13" },
+      { type: "cabinet", x: 7.0, y: 5.95, size: 1.05 },
+      { type: "shadow", x: 2.0, y: 2.0, size: 0.95, showWhenDread: 42 },
+    ],
+  },
+  archive: {
+    start: { x: 4.5, y: 6.4, angle: -Math.PI / 2 },
+    wall: "#343126",
+    floor: "#141311",
+    ceiling: "#10120f",
+    fog: "rgba(196, 154, 86, 0.13)",
+    map: [
+      "111111111",
+      "100000001",
+      "100010001",
+      "100000001",
+      "100000001",
+      "100010001",
+      "100000001",
+      "100000001",
+      "111111111",
+    ],
+    props: [
+      { type: "shelves", x: 1.35, y: 2.7, size: 1.35 },
+      { type: "shelves", x: 7.65, y: 2.8, size: 1.35 },
+      { type: "lamp", x: 4.5, y: 2.0, size: 0.78 },
+      { type: "mirror", x: 6.7, y: 4.25, size: 0.9 },
+      { type: "tape", x: 3.0, y: 5.4, size: 0.72 },
+      { type: "shadow", x: 4.4, y: 1.7, size: 0.9, showWhenDread: 55 },
+    ],
+  },
+  kitchen: {
+    start: { x: 4.4, y: 6.4, angle: -Math.PI / 2 },
+    wall: "#303325",
+    floor: "#12130f",
+    ceiling: "#11100b",
+    fog: "rgba(117, 132, 93, 0.18)",
+    map: [
+      "111111111",
+      "100000001",
+      "100000001",
+      "100010001",
+      "100000001",
+      "100000001",
+      "100010001",
+      "100000001",
+      "111111111",
+    ],
+    props: [
+      { type: "fridge", x: 1.6, y: 3.0, size: 1.35 },
+      { type: "sink", x: 7.1, y: 4.5, size: 1.1 },
+      { type: "shadow", x: 5.7, y: 2.1, size: 0.95, showWhenDread: 48 },
+    ],
+  },
+  childroom: {
+    start: { x: 4.5, y: 6.5, angle: -Math.PI / 2 },
+    wall: "#38253a",
+    floor: "#150d16",
+    ceiling: "#140b14",
+    fog: "rgba(151, 72, 126, 0.16)",
+    map: [
+      "111111111",
+      "100000001",
+      "100000001",
+      "100000001",
+      "100010001",
+      "100000001",
+      "100000001",
+      "100000001",
+      "111111111",
+    ],
+    props: [
+      { type: "bed", x: 2.2, y: 4.2, size: 1.35 },
+      { type: "doll", x: 2.7, y: 3.35, size: 0.78 },
+      { type: "musicbox", x: 5.45, y: 5.2, size: 0.62 },
+      { type: "closet", x: 7.25, y: 3.2, size: 1.18 },
+      { type: "shadow", x: 7.0, y: 5.7, size: 0.95, showWhenDread: 44 },
+    ],
+  },
+  basement: {
+    start: { x: 4.5, y: 6.6, angle: -Math.PI / 2 },
+    wall: "#273025",
+    floor: "#0a0d0b",
+    ceiling: "#050606",
+    fog: "rgba(126, 152, 118, 0.2)",
+    map: [
+      "111111111",
+      "100000001",
+      "100000001",
+      "100010001",
+      "100000001",
+      "100000001",
+      "100000001",
+      "100000001",
+      "111111111",
+    ],
+    props: [
+      { type: "stairs", x: 1.65, y: 5.7, size: 1.1 },
+      { type: "well", x: 4.5, y: 3.0, size: 1.45 },
+      { type: "salt", x: 4.5, y: 3.15, size: 1.5, flag: "saltCircle" },
+      { type: "shadow", x: 4.5, y: 1.65, size: 1.1, showWhenDread: 36 },
+    ],
+  },
+};
+
+const scene3d = {
+  canvas: dom.viewport3d,
+  ctx: null,
+  room: null,
+  keys: new Set(),
+  player: { x: 4.5, y: 6.5, angle: -Math.PI / 2 },
+  lastFrame: 0,
+  frameId: null,
+  zBuffer: [],
+};
 
 let state = createInitialState();
 let tickTimer = null;
@@ -406,6 +543,7 @@ const game = {
 function startGame() {
   state = createInitialState();
   state.running = true;
+  reset3DPlayer(state.room);
   dom.startModal.classList.remove("is-visible");
   dom.endingModal.classList.remove("is-visible");
   game.log("你推开第十三户的门。门在身后合上时，没有发出声音。");
@@ -479,6 +617,7 @@ function render() {
   dom.roomVisual.style.setProperty("--lamp-y", room.lamp[1]);
   dom.roomVisual.style.setProperty("--flashlight-strength", String(0.22 + state.battery / 125));
   dom.roomVisual.style.setProperty("--flicker-opacity", String(0.24 + state.dread / 170));
+  render3D();
 
   renderActions(room);
   renderExits(room);
@@ -498,6 +637,608 @@ function renderVisualState() {
   });
   dom.roomVisual.classList.toggle("visual-ritual-active", state.ritual.active);
   dom.roomVisual.classList.toggle("visual-haunted", state.dread > 58 || state.battery < 18);
+}
+
+function init3D() {
+  if (!scene3d.canvas || typeof scene3d.canvas.getContext !== "function") {
+    return;
+  }
+
+  scene3d.ctx = scene3d.canvas.getContext("2d");
+  if (!scene3d.ctx) {
+    return;
+  }
+
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("keydown", (event) => handle3DKey(event, true));
+    window.addEventListener("keyup", (event) => handle3DKey(event, false));
+    window.addEventListener("resize", render3D);
+  }
+
+  start3DLoop();
+}
+
+function start3DLoop() {
+  if (!scene3d.ctx || typeof window.requestAnimationFrame !== "function") {
+    return;
+  }
+
+  const step = (time) => {
+    const delta = scene3d.lastFrame ? Math.min((time - scene3d.lastFrame) / 1000, 0.05) : 0;
+    scene3d.lastFrame = time;
+    update3D(delta);
+    render3D();
+    scene3d.frameId = window.requestAnimationFrame(step);
+  };
+
+  scene3d.frameId = window.requestAnimationFrame(step);
+}
+
+function handle3DKey(event, isDown) {
+  const key = event.key.toLowerCase();
+  const activeKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"]);
+  if (!activeKeys.has(key)) {
+    return;
+  }
+  if (state.running && typeof event.preventDefault === "function") {
+    event.preventDefault();
+  }
+  if (isDown) {
+    scene3d.keys.add(key);
+  } else {
+    scene3d.keys.delete(key);
+  }
+}
+
+function reset3DPlayer(roomName) {
+  const start = scenes3d[roomName]?.start || scenes3d.foyer.start;
+  scene3d.player = { ...start };
+  scene3d.room = roomName;
+}
+
+function update3D(delta) {
+  if (!state.running || !scene3d.ctx) {
+    return;
+  }
+
+  const scene = scenes3d[state.room];
+  if (!scene) {
+    return;
+  }
+  if (scene3d.room !== state.room) {
+    reset3DPlayer(state.room);
+  }
+
+  const turnSpeed = 2.25;
+  const moveSpeed = state.battery < 20 ? 1.05 : 1.45;
+  const player = scene3d.player;
+  const turningLeft = scene3d.keys.has("a") || scene3d.keys.has("arrowleft");
+  const turningRight = scene3d.keys.has("d") || scene3d.keys.has("arrowright");
+  const movingForward = scene3d.keys.has("w") || scene3d.keys.has("arrowup");
+  const movingBack = scene3d.keys.has("s") || scene3d.keys.has("arrowdown");
+
+  if (turningLeft) {
+    player.angle -= turnSpeed * delta;
+  }
+  if (turningRight) {
+    player.angle += turnSpeed * delta;
+  }
+
+  const direction = (movingForward ? 1 : 0) - (movingBack ? 1 : 0);
+  if (direction !== 0) {
+    const step = direction * moveSpeed * delta;
+    const nextX = player.x + Math.cos(player.angle) * step;
+    const nextY = player.y + Math.sin(player.angle) * step;
+    move3DPlayer(scene, nextX, nextY);
+  }
+}
+
+function move3DPlayer(scene, nextX, nextY) {
+  const radius = 0.24;
+  const player = scene3d.player;
+  if (!is3DWall(scene, nextX + Math.sign(nextX - player.x) * radius, player.y)) {
+    player.x = nextX;
+  }
+  if (!is3DWall(scene, player.x, nextY + Math.sign(nextY - player.y) * radius)) {
+    player.y = nextY;
+  }
+}
+
+function render3D() {
+  if (!scene3d.ctx || !scene3d.canvas) {
+    return;
+  }
+
+  const scene = scenes3d[state.room];
+  if (!scene) {
+    return;
+  }
+  if (scene3d.room !== state.room) {
+    reset3DPlayer(state.room);
+  }
+
+  resize3DCanvas();
+  const ctx = scene3d.ctx;
+  const { canvas } = scene3d;
+  const width = canvas.width;
+  const height = canvas.height;
+  if (!width || !height) {
+    return;
+  }
+
+  draw3DBackground(ctx, scene, width, height);
+  draw3DWalls(ctx, scene, width, height);
+  draw3DProps(ctx, scene, width, height);
+  draw3DAtmosphere(ctx, scene, width, height);
+}
+
+function resize3DCanvas() {
+  const canvas = scene3d.canvas;
+  const rect = typeof canvas.getBoundingClientRect === "function"
+    ? canvas.getBoundingClientRect()
+    : { width: 720, height: 430 };
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(320, Math.floor(rect.width * dpr));
+  const height = Math.max(260, Math.floor(rect.height * dpr));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+}
+
+function draw3DBackground(ctx, scene, width, height) {
+  const ceiling = ctx.createLinearGradient(0, 0, 0, height * 0.52);
+  ceiling.addColorStop(0, "#040305");
+  ceiling.addColorStop(0.6, scene.ceiling);
+  ceiling.addColorStop(1, "#090608");
+  ctx.fillStyle = ceiling;
+  ctx.fillRect(0, 0, width, height * 0.52);
+
+  const floor = ctx.createLinearGradient(0, height * 0.48, 0, height);
+  floor.addColorStop(0, scene.floor);
+  floor.addColorStop(1, "#020202");
+  ctx.fillStyle = floor;
+  ctx.fillRect(0, height * 0.48, width, height);
+
+  ctx.strokeStyle = "rgba(255, 232, 203, 0.055)";
+  ctx.lineWidth = Math.max(1, width / 900);
+  for (let i = 0; i < 18; i += 1) {
+    const y = height * 0.55 + i * i * height * 0.003;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y + i * 0.4);
+    ctx.stroke();
+  }
+}
+
+function draw3DWalls(ctx, scene, width, height) {
+  const fov = Math.PI / 3;
+  const columnWidth = Math.max(2, Math.floor(width / 420));
+  const horizon = height * 0.5 + Math.sin(Date.now() / 550) * (state.dread / 28);
+  scene3d.zBuffer = [];
+
+  for (let x = 0; x < width; x += columnWidth) {
+    const rayAngle = scene3d.player.angle - fov / 2 + (x / width) * fov;
+    const ray = cast3DRay(scene, rayAngle);
+    const corrected = Math.max(0.001, ray.distance * Math.cos(rayAngle - scene3d.player.angle));
+    const wallHeight = Math.min(height * 1.75, height / (corrected * 0.78));
+    const y = horizon - wallHeight / 2;
+    const shade = clamp(corrected / 8, 0, 1);
+
+    ctx.fillStyle = scene.wall;
+    ctx.fillRect(x, y, columnWidth + 1, wallHeight);
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.18 + shade * 0.64})`;
+    ctx.fillRect(x, y, columnWidth + 1, wallHeight);
+
+    if (ray.edge < 0.045) {
+      ctx.fillStyle = "rgba(255, 232, 203, 0.08)";
+      ctx.fillRect(x, y, 1, wallHeight);
+    }
+
+    scene3d.zBuffer[Math.floor(x / columnWidth)] = corrected;
+  }
+}
+
+function draw3DProps(ctx, scene, width, height) {
+  const fov = Math.PI / 3;
+  const columnWidth = Math.max(2, Math.floor(width / 420));
+  const props = getVisible3DProps(scene)
+    .map((prop) => {
+      const dx = prop.x - scene3d.player.x;
+      const dy = prop.y - scene3d.player.y;
+      const distance = Math.hypot(dx, dy);
+      const angle = normalizeAngle(Math.atan2(dy, dx) - scene3d.player.angle);
+      return { ...prop, distance, angle };
+    })
+    .filter((prop) => prop.distance > 0.15 && Math.abs(prop.angle) < fov * 0.68)
+    .sort((a, b) => b.distance - a.distance);
+
+  props.forEach((prop) => {
+    const screenX = (0.5 + prop.angle / fov) * width;
+    const zIndex = Math.floor(screenX / columnWidth);
+    if (scene3d.zBuffer[zIndex] && scene3d.zBuffer[zIndex] < prop.distance - 0.22) {
+      return;
+    }
+    const baseSize = (height / (prop.distance * 1.08)) * (prop.size || 1);
+    const floorY = height * (prop.type === "salt" ? 0.82 : 0.72);
+    draw3DProp(ctx, prop, screenX, floorY, baseSize);
+  });
+}
+
+function draw3DAtmosphere(ctx, scene, width, height) {
+  ctx.fillStyle = scene.fog;
+  ctx.fillRect(0, 0, width, height);
+
+  const pulse = 0.14 + Math.sin(Date.now() / 360) * 0.04;
+  const gradient = ctx.createRadialGradient(width / 2, height * 0.48, height * 0.08, width / 2, height * 0.48, height * 0.66);
+  gradient.addColorStop(0, `rgba(255, 230, 168, ${0.18 + state.battery / 900})`);
+  gradient.addColorStop(0.54, "rgba(0, 0, 0, 0)");
+  gradient.addColorStop(1, `rgba(0, 0, 0, ${0.68 + state.dread / 380})`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  if (state.dread > 62 || state.ritual.active) {
+    ctx.fillStyle = `rgba(182, 38, 53, ${pulse})`;
+    for (let i = 0; i < 7; i += 1) {
+      const x = ((i * 137 + Date.now() / 35) % width);
+      ctx.fillRect(x, 0, Math.max(1, width / 420), height);
+    }
+  }
+}
+
+function cast3DRay(scene, angle) {
+  const maxDistance = 10.5;
+  const step = 0.025;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  let distance = 0;
+
+  while (distance < maxDistance) {
+    const x = scene3d.player.x + cos * distance;
+    const y = scene3d.player.y + sin * distance;
+    if (is3DWall(scene, x, y)) {
+      const edge = Math.min(Math.abs(x - Math.round(x)), Math.abs(y - Math.round(y)));
+      return { distance, edge };
+    }
+    distance += step;
+  }
+
+  return { distance: maxDistance, edge: 1 };
+}
+
+function is3DWall(scene, x, y) {
+  const mapY = Math.floor(y);
+  const mapX = Math.floor(x);
+  return scene.map[mapY]?.[mapX] !== "0";
+}
+
+function getVisible3DProps(scene) {
+  return scene.props.filter((prop) => {
+    if (prop.flag && !state.flags.has(prop.flag)) {
+      return false;
+    }
+    if (prop.hideFlag && state.flags.has(prop.hideFlag)) {
+      return false;
+    }
+    if (prop.showWhenDread && state.dread < prop.showWhenDread && !state.ritual.active) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function draw3DProp(ctx, prop, x, floorY, size) {
+  ctx.save();
+  ctx.translate(x, floorY);
+  ctx.globalAlpha = clamp(1.15 - prop.distance / 8, 0.25, 1);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+  ctx.beginPath();
+  ctx.ellipse(0, size * 0.08, size * 0.42, size * 0.12, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const height = size * 0.95;
+  const width = size * 0.52;
+  switch (prop.type) {
+    case "door":
+      drawDoor3D(ctx, width * 1.1, height * 1.55, prop.label);
+      break;
+    case "plate":
+      drawPanel3D(ctx, width * 0.9, height * 0.42, prop.label || "13", "#38271f");
+      break;
+    case "cabinet":
+      drawCabinet3D(ctx, width * 1.25, height * 0.8);
+      break;
+    case "shelves":
+      drawShelves3D(ctx, width * 1.2, height * 1.3);
+      break;
+    case "lamp":
+      drawLamp3D(ctx, size, state.flags.has("archiveLit"));
+      break;
+    case "mirror":
+      drawMirror3D(ctx, width, height * 1.1);
+      break;
+    case "tape":
+      drawTape3D(ctx, width * 1.2, height * 0.42);
+      break;
+    case "fridge":
+      drawFridge3D(ctx, width * 1.15, height * 1.35, state.flags.has("openedFridge"));
+      break;
+    case "sink":
+      drawSink3D(ctx, width * 1.35, height * 0.74);
+      break;
+    case "bed":
+      drawBed3D(ctx, width * 1.7, height * 0.75, state.flags.has("foundDoll"));
+      break;
+    case "doll":
+      drawDoll3D(ctx, size, state.flags.has("foundDoll"));
+      break;
+    case "musicbox":
+      drawMusicBox3D(ctx, width * 0.98, height * 0.44);
+      break;
+    case "closet":
+      drawCloset3D(ctx, width * 1.05, height * 1.35);
+      break;
+    case "stairs":
+      drawStairs3D(ctx, width * 1.4, height);
+      break;
+    case "well":
+      drawWell3D(ctx, size, state.ritual.active);
+      break;
+    case "salt":
+      drawSaltCircle3D(ctx, size, state.ritual.active);
+      break;
+    case "shadow":
+      drawShadow3D(ctx, size);
+      break;
+    default:
+      drawPanel3D(ctx, width, height, "?", "#22181c");
+  }
+  ctx.restore();
+}
+
+function drawDoor3D(ctx, width, height, label) {
+  ctx.fillStyle = "#13090b";
+  ctx.fillRect(-width / 2, -height, width, height);
+  ctx.fillStyle = "#3a1d22";
+  ctx.fillRect(-width * 0.42, -height * 0.92, width * 0.84, height * 0.86);
+  ctx.strokeStyle = "rgba(255, 232, 203, 0.16)";
+  ctx.strokeRect(-width * 0.34, -height * 0.72, width * 0.68, height * 0.52);
+  ctx.fillStyle = "rgba(216, 157, 75, 0.82)";
+  ctx.beginPath();
+  ctx.arc(width * 0.27, -height * 0.48, Math.max(2, width * 0.04), 0, Math.PI * 2);
+  ctx.fill();
+  drawPropText(ctx, label, 0, -height * 0.78, width * 0.22);
+}
+
+function drawPanel3D(ctx, width, height, label, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(-width / 2, -height, width, height);
+  ctx.strokeStyle = "rgba(216, 157, 75, 0.45)";
+  ctx.strokeRect(-width / 2, -height, width, height);
+  drawPropText(ctx, label, 0, -height * 0.42, height * 0.45);
+}
+
+function drawCabinet3D(ctx, width, height) {
+  ctx.fillStyle = "#2c211b";
+  ctx.fillRect(-width / 2, -height, width, height);
+  ctx.strokeStyle = "rgba(255, 232, 203, 0.16)";
+  for (let i = 1; i < 4; i += 1) {
+    const y = -height + (height / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(-width / 2, y);
+    ctx.lineTo(width / 2, y);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(216, 157, 75, 0.4)";
+  ctx.fillRect(-width * 0.18, -height * 0.56, width * 0.36, height * 0.04);
+}
+
+function drawShelves3D(ctx, width, height) {
+  ctx.fillStyle = "#211917";
+  ctx.fillRect(-width / 2, -height, width, height);
+  ctx.strokeStyle = "rgba(216, 157, 75, 0.28)";
+  for (let i = 1; i < 5; i += 1) {
+    const y = -height + (height / 5) * i;
+    ctx.beginPath();
+    ctx.moveTo(-width / 2, y);
+    ctx.lineTo(width / 2, y);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(226, 209, 173, 0.22)";
+  for (let i = 0; i < 9; i += 1) {
+    const bookX = -width * 0.42 + i * width * 0.1;
+    ctx.fillRect(bookX, -height * (0.82 - (i % 3) * 0.13), width * 0.045, height * 0.16);
+  }
+}
+
+function drawLamp3D(ctx, size, lit) {
+  if (lit) {
+    const glow = ctx.createRadialGradient(0, -size * 0.86, 0, 0, -size * 0.86, size * 0.9);
+    glow.addColorStop(0, "rgba(255, 226, 140, 0.72)");
+    glow.addColorStop(1, "rgba(255, 226, 140, 0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(-size, -size * 1.75, size * 2, size * 1.8);
+  }
+  ctx.fillStyle = "#15100d";
+  ctx.fillRect(-size * 0.04, -size * 1.22, size * 0.08, size * 1.08);
+  ctx.fillStyle = lit ? "#e6b35f" : "#4c3824";
+  ctx.beginPath();
+  ctx.moveTo(-size * 0.28, -size * 1.24);
+  ctx.lineTo(size * 0.28, -size * 1.24);
+  ctx.lineTo(size * 0.42, -size * 0.82);
+  ctx.lineTo(-size * 0.42, -size * 0.82);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawMirror3D(ctx, width, height) {
+  ctx.fillStyle = "#2c211f";
+  ctx.beginPath();
+  ctx.ellipse(0, -height * 0.5, width * 0.52, height * 0.54, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(183, 214, 204, 0.24)";
+  ctx.beginPath();
+  ctx.ellipse(0, -height * 0.5, width * 0.38, height * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+  ctx.beginPath();
+  ctx.moveTo(-width * 0.18, -height * 0.76);
+  ctx.lineTo(width * 0.15, -height * 0.46);
+  ctx.lineTo(-width * 0.05, -height * 0.28);
+  ctx.stroke();
+}
+
+function drawTape3D(ctx, width, height) {
+  ctx.fillStyle = "#231719";
+  ctx.fillRect(-width / 2, -height, width, height);
+  ctx.fillStyle = "#070506";
+  [-0.24, 0.24].forEach((offset) => {
+    ctx.beginPath();
+    ctx.arc(width * offset, -height * 0.52, height * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawFridge3D(ctx, width, height, open) {
+  ctx.fillStyle = open ? "#16221f" : "#27332e";
+  ctx.fillRect(-width / 2, -height, width, height);
+  ctx.strokeStyle = "rgba(220, 241, 223, 0.2)";
+  ctx.strokeRect(-width / 2, -height, width, height);
+  ctx.beginPath();
+  ctx.moveTo(-width / 2, -height * 0.5);
+  ctx.lineTo(width / 2, -height * 0.5);
+  ctx.stroke();
+  if (open) {
+    ctx.fillStyle = "rgba(188, 255, 225, 0.34)";
+    ctx.fillRect(width * 0.18, -height * 0.94, width * 0.42, height * 0.9);
+  }
+}
+
+function drawSink3D(ctx, width, height) {
+  ctx.fillStyle = "#424238";
+  ctx.fillRect(-width / 2, -height, width, height);
+  ctx.fillStyle = "#090807";
+  ctx.beginPath();
+  ctx.ellipse(0, -height * 0.68, width * 0.28, height * 0.18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(210, 199, 160, 0.4)";
+  ctx.beginPath();
+  ctx.arc(0, -height * 1.02, width * 0.12, Math.PI, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawBed3D(ctx, width, height, dollTaken) {
+  ctx.fillStyle = "#281724";
+  ctx.fillRect(-width / 2, -height, width, height);
+  ctx.strokeStyle = "rgba(255, 232, 203, 0.2)";
+  for (let i = 0; i < 6; i += 1) {
+    const x = -width / 2 + i * width / 5;
+    ctx.beginPath();
+    ctx.moveTo(x, -height);
+    ctx.lineTo(x, 0);
+    ctx.stroke();
+  }
+  if (dollTaken) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+    ctx.beginPath();
+    ctx.ellipse(0, -height * 0.48, width * 0.18, height * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawDoll3D(ctx, size, dollTaken) {
+  ctx.globalAlpha *= dollTaken ? 0.25 : 1;
+  ctx.fillStyle = "#c7b49b";
+  ctx.beginPath();
+  ctx.arc(0, -size * 0.96, size * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#3d2736";
+  ctx.beginPath();
+  ctx.moveTo(0, -size * 0.78);
+  ctx.lineTo(size * 0.32, -size * 0.18);
+  ctx.lineTo(-size * 0.32, -size * 0.18);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+  ctx.fillRect(-size * 0.07, -size, size * 0.035, size * 0.035);
+  ctx.fillRect(size * 0.04, -size, size * 0.035, size * 0.035);
+}
+
+function drawMusicBox3D(ctx, width, height) {
+  ctx.fillStyle = "#38211d";
+  ctx.fillRect(-width / 2, -height, width, height);
+  ctx.fillStyle = "rgba(216, 157, 75, 0.45)";
+  ctx.fillRect(-width * 0.05, -height * 1.32, width * 0.1, height * 0.34);
+}
+
+function drawCloset3D(ctx, width, height) {
+  ctx.fillStyle = "#28151d";
+  ctx.fillRect(-width / 2, -height, width, height);
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.7)";
+  ctx.beginPath();
+  ctx.moveTo(0, -height);
+  ctx.lineTo(0, 0);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(216, 157, 75, 0.45)";
+  ctx.fillRect(-width * 0.11, -height * 0.52, width * 0.045, width * 0.045);
+  ctx.fillRect(width * 0.08, -height * 0.52, width * 0.045, width * 0.045);
+}
+
+function drawStairs3D(ctx, width, height) {
+  ctx.fillStyle = "#15100f";
+  for (let i = 0; i < 6; i += 1) {
+    const stepWidth = width * (1 - i * 0.11);
+    ctx.fillRect(-stepWidth / 2, -height * (0.18 + i * 0.12), stepWidth, height * 0.07);
+  }
+}
+
+function drawWell3D(ctx, size, ritualActive) {
+  ctx.fillStyle = ritualActive ? "#11160f" : "#181711";
+  ctx.beginPath();
+  ctx.ellipse(0, -size * 0.42, size * 0.45, size * 0.25, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#010101";
+  ctx.beginPath();
+  ctx.ellipse(0, -size * 0.48, size * 0.33, size * 0.16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 232, 203, 0.18)";
+  ctx.lineWidth = Math.max(1, size * 0.035);
+  ctx.stroke();
+}
+
+function drawSaltCircle3D(ctx, size, ritualActive) {
+  ctx.strokeStyle = ritualActive ? "rgba(255, 239, 179, 0.95)" : "rgba(245, 237, 211, 0.72)";
+  ctx.lineWidth = Math.max(2, size * 0.035);
+  ctx.setLineDash([size * 0.1, size * 0.07]);
+  ctx.beginPath();
+  ctx.ellipse(0, -size * 0.05, size * 0.62, size * 0.18, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  if (ritualActive) {
+    ["镜", "偶", "井"].forEach((label, index) => {
+      const angle = Date.now() / 600 + index * Math.PI * 2 / 3;
+      drawPropText(ctx, label, Math.cos(angle) * size * 0.45, -size * 0.2 + Math.sin(angle) * size * 0.14, size * 0.12);
+    });
+  }
+}
+
+function drawShadow3D(ctx, size) {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.86)";
+  ctx.beginPath();
+  ctx.ellipse(0, -size * 1.08, size * 0.17, size * 0.21, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(-size * 0.16, -size * 0.92, size * 0.32, size * 0.72);
+  ctx.fillStyle = "rgba(255, 245, 220, 0.5)";
+  ctx.fillRect(-size * 0.06, -size * 1.11, size * 0.035, size * 0.025);
+  ctx.fillRect(size * 0.03, -size * 1.11, size * 0.035, size * 0.025);
+}
+
+function drawPropText(ctx, text, x, y, size) {
+  ctx.fillStyle = "rgba(255, 232, 203, 0.86)";
+  ctx.font = `${Math.max(10, size)}px serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x, y);
 }
 
 function renderActions(room) {
@@ -681,6 +1422,17 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function normalizeAngle(angle) {
+  let normalized = angle;
+  while (normalized > Math.PI) {
+    normalized -= Math.PI * 2;
+  }
+  while (normalized < -Math.PI) {
+    normalized += Math.PI * 2;
+  }
+  return normalized;
+}
+
 function randomFrom(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
@@ -777,4 +1529,5 @@ dom.startButton.addEventListener("click", () => {
 dom.restartButton.addEventListener("click", restartGame);
 dom.soundToggle.addEventListener("click", toggleSound);
 
+init3D();
 render();

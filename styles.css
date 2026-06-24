@@ -233,7 +233,7 @@ h1 {
 
 .room-visual {
   position: relative;
-  min-height: 330px;
+  min-height: 430px;
   overflow: hidden;
   border-bottom: 1px solid var(--line);
   background:
@@ -256,11 +256,45 @@ h1 {
 }
 
 .room-visual::after {
-  z-index: 3;
+  z-index: 4;
   opacity: var(--flicker-opacity, 0.5);
   background: radial-gradient(circle at var(--lamp-x, 50%) var(--lamp-y, 48%), rgba(255, 239, 194, 0.26), transparent 18rem);
   mix-blend-mode: screen;
   animation: lightBreath 4s ease-in-out infinite;
+}
+
+.viewport-3d {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  background: #050406;
+  image-rendering: pixelated;
+}
+
+.hud-3d {
+  position: absolute;
+  z-index: 6;
+  right: 0.9rem;
+  top: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  max-width: min(28rem, calc(100% - 1.8rem));
+  color: rgba(255, 232, 203, 0.72);
+  font-family: "Courier New", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hud-3d span {
+  border: 1px solid rgba(255, 232, 203, 0.16);
+  padding: 0.32rem 0.45rem;
+  background: rgba(0, 0, 0, 0.42);
+  box-shadow: 0 0 1rem rgba(0, 0, 0, 0.35);
 }
 
 .scene {
@@ -878,7 +912,7 @@ h1 {
 .flashlight {
   position: absolute;
   inset: auto 0 0;
-  z-index: 4;
+  z-index: 5;
   height: 84%;
   background: radial-gradient(ellipse at 50% 42%, rgba(255, 236, 185, 0.28), transparent 34%);
   opacity: var(--flashlight-strength, 0.8);
@@ -887,7 +921,7 @@ h1 {
 
 .room-name {
   position: absolute;
-  z-index: 5;
+  z-index: 6;
   left: 1.2rem;
   bottom: 1rem;
   padding: 0.35rem 0.55rem;
@@ -1114,7 +1148,7 @@ h1 {
   }
 
   .room-visual {
-    min-height: 250px;
+    min-height: 330px;
   }
 
   .action-grid {
