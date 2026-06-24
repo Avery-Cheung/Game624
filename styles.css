@@ -271,6 +271,7 @@ h1 {
   height: 100%;
   background: #050406;
   image-rendering: pixelated;
+  touch-action: none;
 }
 
 .hud-3d {
@@ -295,6 +296,77 @@ h1 {
   padding: 0.32rem 0.45rem;
   background: rgba(0, 0, 0, 0.42);
   box-shadow: 0 0 1rem rgba(0, 0, 0, 0.35);
+}
+
+.touch-controls {
+  pointer-events: none;
+  position: absolute;
+  z-index: 7;
+  inset: auto 0 0;
+  display: none;
+  justify-content: space-between;
+  padding: 0 1rem 0.85rem;
+}
+
+.touch-pad {
+  pointer-events: auto;
+  position: relative;
+  display: grid;
+  width: clamp(5.6rem, 22vw, 7.2rem);
+  height: clamp(5.6rem, 22vw, 7.2rem);
+  place-items: center;
+  border: 1px solid rgba(255, 232, 203, 0.22);
+  border-radius: 50%;
+  color: rgba(255, 232, 203, 0.58);
+  background:
+    radial-gradient(circle, rgba(255, 232, 203, 0.08), rgba(0, 0, 0, 0.48) 64%),
+    rgba(0, 0, 0, 0.26);
+  box-shadow:
+    0 0 2rem rgba(0, 0, 0, 0.55),
+    inset 0 0 1.2rem rgba(255, 232, 203, 0.06);
+  touch-action: none;
+  user-select: none;
+}
+
+.touch-pad::before,
+.touch-pad::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 232, 203, 0.13);
+}
+
+.touch-pad::before {
+  width: 54%;
+  height: 1px;
+}
+
+.touch-pad::after {
+  width: 1px;
+  height: 54%;
+}
+
+.touch-pad b {
+  position: absolute;
+  bottom: -1.45rem;
+  font-family: "Courier New", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-shadow: 0 0 0.8rem rgba(0, 0, 0, 0.8);
+}
+
+.touch-pad-knob {
+  position: absolute;
+  width: 42%;
+  height: 42%;
+  border: 1px solid rgba(216, 157, 75, 0.52);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 32%, rgba(255, 232, 203, 0.38), rgba(182, 38, 53, 0.18) 45%, rgba(0, 0, 0, 0.45));
+  box-shadow:
+    0 0 1.2rem rgba(216, 157, 75, 0.18),
+    inset 0 0 0.7rem rgba(0, 0, 0, 0.42);
+  transform: translate3d(0, 0, 0);
 }
 
 .scene {
@@ -1135,6 +1207,14 @@ h1 {
   .secondary {
     grid-column: 1 / -1;
   }
+
+  .touch-controls {
+    display: flex;
+  }
+
+  .room-copy {
+    min-height: auto;
+  }
 }
 
 @media (max-width: 600px) {
@@ -1148,11 +1228,27 @@ h1 {
   }
 
   .room-visual {
-    min-height: 330px;
+    min-height: min(68vh, 430px);
   }
 
   .action-grid {
     grid-template-columns: 1fr;
+  }
+
+  .hud-3d {
+    right: 0.55rem;
+    top: 0.55rem;
+    font-size: 0.58rem;
+  }
+
+  .touch-controls {
+    padding: 0 0.65rem 2.25rem;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .touch-controls {
+    display: flex;
   }
 }
 

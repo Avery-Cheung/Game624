@@ -303,6 +303,11 @@ const dom = {
   dreadValue: document.getElementById("dreadValue"),
   dreadMeter: document.getElementById("dreadMeter"),
   viewport3d: document.getElementById("viewport3d"),
+  touchControls: document.getElementById("touchControls"),
+  movePad: document.getElementById("movePad"),
+  moveKnob: document.getElementById("moveKnob"),
+  lookPad: document.getElementById("lookPad"),
+  lookKnob: document.getElementById("lookKnob"),
   roomVisual: document.getElementById("roomVisual"),
   roomName: document.getElementById("roomName"),
   roomDescription: document.getElementById("roomDescription"),
@@ -460,6 +465,12 @@ const scene3d = {
   lastFrame: 0,
   frameId: null,
   zBuffer: [],
+  touch: {
+    move: 0,
+    turn: 0,
+    lookDragId: null,
+    lookDragX: 0,
+  },
 };
 
 let state = createInitialState();
@@ -655,6 +666,7 @@ function init3D() {
     window.addEventListener("resize", render3D);
   }
 
+  initTouchControls();
   start3DLoop();
 }
 
@@ -690,6 +702,113 @@ function handle3DKey(event, isDown) {
   }
 }
 
+function initTouchControls() {
+  bindTouchPad(dom.movePad, dom.moveKnob, "move");
+  bindTouchPad(dom.lookPad, dom.lookKnob, "turn");
+  bindViewportLookDrag();
+}
+
+function bindTouchPad(pad, knob, type) {
+  if (!pad || !knob || typeof pad.addEventListener !== "function") {
+    return;
+  }
+
+  const update = (event) => {
+    if (typeof event.preventDefault === "function") {
+      event.preventDefault();
+    }
+    const rect = typeof pad.getBoundingClientRect === "function"
+      ? pad.getBoundingClientRect()
+      : { left: 0, top: 0, width: 96, height: 96 };
+    const radius = Math.max(1, Math.min(rect.width, rect.height) / 2);
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const rawX = event.clientX - centerX;
+    const rawY = event.clientY - centerY;
+    const distance = Math.min(radius, Math.hypot(rawX, rawY));
+    const angle = Math.atan2(rawY, rawX);
+    const x = Math.cos(angle) * distance;
+    const y = Math.sin(angle) * distance;
+    const normalizedX = clamp(x / radius, -1, 1);
+    const normalizedY = clamp(y / radius, -1, 1);
+
+    knob.style.transform = `translate3d(${normalizedX * 82}%, ${normalizedY * 82}%, 0)`;
+    if (type === "move") {
+      scene3d.touch.move = clamp(-normalizedY, -1, 1);
+    } else {
+      scene3d.touch.turn = clamp(normalizedX, -1, 1);
+    }
+  };
+
+  const reset = (event) => {
+    if (event && typeof event.preventDefault === "function") {
+      event.preventDefault();
+    }
+    knob.style.transform = "translate3d(0, 0, 0)";
+    if (type === "move") {
+      scene3d.touch.move = 0;
+    } else {
+      scene3d.touch.turn = 0;
+    }
+  };
+
+  pad.addEventListener("pointerdown", (event) => {
+    if (typeof pad.setPointerCapture === "function") {
+      pad.setPointerCapture(event.pointerId);
+    }
+    update(event);
+  });
+  pad.addEventListener("pointermove", (event) => {
+    if (event.buttons || event.pressure > 0 || event.pointerType === "touch") {
+      update(event);
+    }
+  });
+  pad.addEventListener("pointerup", reset);
+  pad.addEventListener("pointercancel", reset);
+  pad.addEventListener("lostpointercapture", reset);
+}
+
+function bindViewportLookDrag() {
+  const canvas = scene3d.canvas;
+  if (!canvas || typeof canvas.addEventListener !== "function") {
+    return;
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse") {
+      return;
+    }
+    scene3d.touch.lookDragId = event.pointerId;
+    scene3d.touch.lookDragX = event.clientX;
+    if (typeof canvas.setPointerCapture === "function") {
+      canvas.setPointerCapture(event.pointerId);
+    }
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (scene3d.touch.lookDragId !== event.pointerId || !state.running) {
+      return;
+    }
+    if (typeof event.preventDefault === "function") {
+      event.preventDefault();
+    }
+    const rect = typeof canvas.getBoundingClientRect === "function"
+      ? canvas.getBoundingClientRect()
+      : { width: 720 };
+    const deltaX = event.clientX - scene3d.touch.lookDragX;
+    scene3d.touch.lookDragX = event.clientX;
+    scene3d.player.angle += (deltaX / Math.max(1, rect.width)) * 2.8;
+  });
+
+  const endDrag = (event) => {
+    if (scene3d.touch.lookDragId === event.pointerId) {
+      scene3d.touch.lookDragId = null;
+    }
+  };
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+}
+
 function reset3DPlayer(roomName) {
   const start = scenes3d[roomName]?.start || scenes3d.foyer.start;
   scene3d.player = { ...start };
@@ -712,19 +831,17 @@ function update3D(delta) {
   const turnSpeed = 2.25;
   const moveSpeed = state.battery < 20 ? 1.05 : 1.45;
   const player = scene3d.player;
-  const turningLeft = scene3d.keys.has("a") || scene3d.keys.has("arrowleft");
-  const turningRight = scene3d.keys.has("d") || scene3d.keys.has("arrowright");
-  const movingForward = scene3d.keys.has("w") || scene3d.keys.has("arrowup");
-  const movingBack = scene3d.keys.has("s") || scene3d.keys.has("arrowdown");
+  const keyTurn = (scene3d.keys.has("d") || scene3d.keys.has("arrowright") ? 1 : 0)
+    - (scene3d.keys.has("a") || scene3d.keys.has("arrowleft") ? 1 : 0);
+  const keyMove = (scene3d.keys.has("w") || scene3d.keys.has("arrowup") ? 1 : 0)
+    - (scene3d.keys.has("s") || scene3d.keys.has("arrowdown") ? 1 : 0);
+  const turnInput = clamp(keyTurn + scene3d.touch.turn, -1, 1);
+  const direction = clamp(keyMove + scene3d.touch.move, -1, 1);
 
-  if (turningLeft) {
-    player.angle -= turnSpeed * delta;
-  }
-  if (turningRight) {
-    player.angle += turnSpeed * delta;
+  if (turnInput !== 0) {
+    player.angle += turnInput * turnSpeed * delta;
   }
 
-  const direction = (movingForward ? 1 : 0) - (movingBack ? 1 : 0);
   if (direction !== 0) {
     const step = direction * moveSpeed * delta;
     const nextX = player.x + Math.cos(player.angle) * step;
