@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>午夜第十三户</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="apparition" id="apparition" aria-hidden="true"></div>
+
+    <main class="shell" id="gameShell">
+      <section class="hero">
+        <p class="eyebrow">Web Horror Game</p>
+        <h1>午夜第十三户</h1>
+        <p class="tagline">门牌在凌晨 00:13 之后才会出现。你听见屋里有人用你的声音说：“快进来。”</p>
+      </section>
+
+      <section class="game-panel" aria-label="游戏界面">
+        <aside class="status-card">
+          <div class="clock">
+            <span>00</span><span class="pulse">:</span><span id="minute">13</span>
+          </div>
+          <div class="meter">
+            <div class="meter-label">
+              <span>手电电量</span>
+              <strong id="batteryValue">100%</strong>
+            </div>
+            <div class="meter-track">
+              <div class="meter-fill battery" id="batteryMeter"></div>
+            </div>
+          </div>
+          <div class="meter">
+            <div class="meter-label">
+              <span>恐惧侵蚀</span>
+              <strong id="dreadValue">0%</strong>
+            </div>
+            <div class="meter-track">
+              <div class="meter-fill dread" id="dreadMeter"></div>
+            </div>
+          </div>
+          <div class="seal-board" aria-label="已收集印记">
+            <span class="seal" id="seal-mirror">镜</span>
+            <span class="seal" id="seal-doll">偶</span>
+            <span class="seal" id="seal-well">井</span>
+          </div>
+          <button class="secondary" id="soundToggle" type="button">开启声音</button>
+        </aside>
+
+        <section class="room-card">
+          <div class="room-visual" id="roomVisual">
+            <div class="flashlight"></div>
+            <div class="room-name" id="roomName">门厅</div>
+          </div>
+          <div class="room-copy">
+            <p id="roomDescription"></p>
+            <p class="whisper" id="whisperLine"></p>
+          </div>
+          <div class="action-grid" id="actionGrid"></div>
+          <div class="exit-grid" id="exitGrid"></div>
+        </section>
+
+        <aside class="journal-card">
+          <h2>调查记录</h2>
+          <ul id="logList" class="log-list"></ul>
+          <h2>随身物品</h2>
+          <div id="inventory" class="inventory"></div>
+        </aside>
+      </section>
+    </main>
+
+    <section class="modal is-visible" id="startModal" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+      <div class="modal-card">
+        <p class="eyebrow">凌晨 00:13</p>
+        <h2 id="startTitle">第十三户正在等你</h2>
+        <p>
+          在旧楼最深处，住户名单上多了一扇不存在的门。
+          找到三枚印记，在恐惧吞掉你之前封住地下室的井。
+        </p>
+        <div class="rules">
+          <span>探索房间</span>
+          <span>收集线索</span>
+          <span>恐惧满格即失败</span>
+        </div>
+        <button class="primary" id="startButton" type="button">敲门进入</button>
+      </div>
+    </section>
+
+    <section class="modal" id="endingModal" role="dialog" aria-modal="true" aria-labelledby="endingTitle">
+      <div class="modal-card">
+        <p class="eyebrow" id="endingKicker">结局</p>
+        <h2 id="endingTitle"></h2>
+        <p id="endingText"></p>
+        <button class="primary" id="restartButton" type="button">重新进入</button>
+      </div>
+    </section>
+
+    <script src="game.js" defer></script>
+  </body>
+</html>
