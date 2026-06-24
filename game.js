@@ -355,6 +355,11 @@ const scenes3d = {
       { type: "cabinet", x: 7.0, y: 5.95, size: 1.05 },
       { type: "shadow", x: 2.0, y: 2.0, size: 0.95, showWhenDread: 42 },
     ],
+    exits: [
+      { target: "archive", x: 1.1, y: 4.5, label: "档" },
+      { target: "kitchen", x: 7.9, y: 4.5, label: "厨" },
+      { target: "basement", x: 4.5, y: 7.75, label: "下" },
+    ],
   },
   archive: {
     start: { x: 4.5, y: 6.4, angle: -Math.PI / 2 },
@@ -381,6 +386,10 @@ const scenes3d = {
       { type: "tape", x: 3.0, y: 5.4, size: 0.72 },
       { type: "shadow", x: 4.4, y: 1.7, size: 0.9, showWhenDread: 55 },
     ],
+    exits: [
+      { target: "foyer", x: 4.5, y: 7.75, label: "厅" },
+      { target: "childroom", x: 7.85, y: 4.5, label: "童" },
+    ],
   },
   kitchen: {
     start: { x: 4.4, y: 6.4, angle: -Math.PI / 2 },
@@ -403,6 +412,10 @@ const scenes3d = {
       { type: "fridge", x: 1.6, y: 3.0, size: 1.35 },
       { type: "sink", x: 7.1, y: 4.5, size: 1.1 },
       { type: "shadow", x: 5.7, y: 2.1, size: 0.95, showWhenDread: 48 },
+    ],
+    exits: [
+      { target: "foyer", x: 4.5, y: 7.75, label: "厅" },
+      { target: "archive", x: 1.1, y: 4.5, label: "档" },
     ],
   },
   childroom: {
@@ -429,6 +442,10 @@ const scenes3d = {
       { type: "closet", x: 7.25, y: 3.2, size: 1.18 },
       { type: "shadow", x: 7.0, y: 5.7, size: 0.95, showWhenDread: 44 },
     ],
+    exits: [
+      { target: "archive", x: 4.5, y: 7.75, label: "档" },
+      { target: "foyer", x: 1.1, y: 4.5, label: "厅" },
+    ],
   },
   basement: {
     start: { x: 4.5, y: 6.6, angle: -Math.PI / 2 },
@@ -452,6 +469,9 @@ const scenes3d = {
       { type: "well", x: 4.5, y: 3.0, size: 1.45 },
       { type: "salt", x: 4.5, y: 3.15, size: 1.5, flag: "saltCircle" },
       { type: "shadow", x: 4.5, y: 1.65, size: 1.1, showWhenDread: 36 },
+    ],
+    exits: [
+      { target: "foyer", x: 4.5, y: 7.75, label: "厅" },
     ],
   },
 };
@@ -697,12 +717,16 @@ function start3DLoop() {
 
 function handle3DKey(event, isDown) {
   const key = normalizeControlKey(event);
-  const activeKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"]);
+  const activeKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "e", "enter", "space"]);
   if (!activeKeys.has(key)) {
     return;
   }
   if (state.running && typeof event.preventDefault === "function") {
     event.preventDefault();
+  }
+  if (isDown && (key === "e" || key === "enter" || key === "space")) {
+    interactWithNearbyTarget();
+    return;
   }
   if (isDown) {
     scene3d.keys.add(key);
@@ -719,6 +743,10 @@ function normalizeControlKey(event) {
     keya: "a",
     keys: "s",
     keyd: "d",
+    keye: "e",
+    space: "space",
+    " ": "space",
+    enter: "enter",
     arrowup: "arrowup",
     arrowdown: "arrowdown",
     arrowleft: "arrowleft",
@@ -827,7 +855,7 @@ function bindActionPad(pad, knob) {
       event.preventDefault();
     }
     knob.style.transform = "translate3d(0, -18%, 0) scale(0.9)";
-    interactWithNearbyProp();
+    interactWithNearbyTarget();
   };
   const reset = (event) => {
     if (event && typeof event.preventDefault === "function") {
@@ -1015,6 +1043,7 @@ function render3D() {
   const layout = getTopdownLayout(scene, width, height);
   drawTopdownBackground(ctx, scene, width, height);
   drawTopdownMap(ctx, scene, layout);
+  drawTopdownExits(ctx, scene, layout);
   drawTopdownProps(ctx, scene, layout);
   drawTopdownPlayer(ctx, layout);
   drawTopdownHud(ctx, scene, layout, width, height);
@@ -1096,6 +1125,35 @@ function drawTopdownProps(ctx, scene, layout) {
     .slice()
     .sort((a, b) => a.y - b.y)
     .forEach((prop) => drawTopdownProp(ctx, prop, layout));
+}
+
+function drawTopdownExits(ctx, scene, layout) {
+  (scene.exits || []).forEach((exit) => {
+    const point = worldToScreen(layout, exit.x, exit.y);
+    const size = layout.tile * 0.56;
+    const nearby = getNearbyExit()?.exit === exit;
+    const enabled = isExitEnabled(exit);
+    const color = enabled ? "#57b79d" : "#4b3a35";
+    const px = Math.max(3, Math.floor(layout.tile / 10));
+
+    ctx.save();
+    ctx.translate(point.x, point.y);
+    pixelRect(ctx, -size * 0.55, -size * 0.42, size * 1.1, size * 0.84, color);
+    pixelRect(ctx, -size * 0.42, -size * 0.28, size * 0.84, px * 2, enabled ? "rgba(226, 255, 238, 0.28)" : "rgba(0,0,0,0.22)");
+    pixelRect(ctx, -size * 0.5, size * 0.28, size, px * 2, "rgba(0,0,0,0.28)");
+    ctx.fillStyle = enabled ? "#08110f" : "rgba(246,222,192,0.45)";
+    ctx.font = `${Math.max(12, size * 0.4)}px serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(exit.label, 0, -px * 0.2);
+    if (nearby) {
+      pixelRect(ctx, -size * 0.72, -size * 0.62, size * 1.44, px, "rgba(158, 212, 192, 0.95)");
+      pixelRect(ctx, -size * 0.72, size * 0.58, size * 1.44, px, "rgba(158, 212, 192, 0.95)");
+      pixelRect(ctx, -size * 0.75, -size * 0.58, px, size * 1.16, "rgba(158, 212, 192, 0.95)");
+      pixelRect(ctx, size * 0.72, -size * 0.58, px, size * 1.16, "rgba(158, 212, 192, 0.95)");
+    }
+    ctx.restore();
+  });
 }
 
 function drawTopdownProp(ctx, prop, layout) {
@@ -1261,18 +1319,57 @@ function drawTopdownHud(ctx, scene, layout, width, height) {
   ctx.fillStyle = `rgba(179, 38, 53, ${state.dread / 420})`;
   ctx.fillRect(0, 0, width, height);
 
-  const nearby = getNearbyProp();
-  if (nearby?.action) {
+  drawCanvasStatusHud(ctx, width, height, layout);
+
+  const nearby = getNearbyTarget();
+  if (nearby) {
     ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
-    ctx.fillRect(width / 2 - layout.tile * 2.8, height - layout.tile * 1.1, layout.tile * 5.6, layout.tile * 0.62);
+    ctx.fillRect(width / 2 - layout.tile * 3.1, height - layout.tile * 1.1, layout.tile * 6.2, layout.tile * 0.62);
     ctx.strokeStyle = "rgba(217, 161, 95, 0.45)";
-    ctx.strokeRect(width / 2 - layout.tile * 2.8, height - layout.tile * 1.1, layout.tile * 5.6, layout.tile * 0.62);
+    ctx.strokeRect(width / 2 - layout.tile * 3.1, height - layout.tile * 1.1, layout.tile * 6.2, layout.tile * 0.62);
     ctx.fillStyle = "#f8e4bf";
     ctx.font = `${Math.max(12, layout.tile * 0.22)}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`靠近：${nearby.label}`, width / 2, height - layout.tile * 0.79);
+    ctx.fillText(nearby.label, width / 2, height - layout.tile * 0.79);
   }
+}
+
+function drawCanvasStatusHud(ctx, width, height, layout) {
+  const pad = Math.max(12, layout.tile * 0.28);
+  const barWidth = Math.max(150, layout.tile * 3.6);
+  const barHeight = Math.max(8, layout.tile * 0.16);
+  pixelRect(ctx, pad, pad, barWidth + pad, layout.tile * 1.16, "rgba(0,0,0,0.58)");
+  drawCanvasBar(ctx, pad * 1.45, pad * 1.45, barWidth, barHeight, state.battery / 100, "#d9a15f");
+  drawCanvasBar(ctx, pad * 1.45, pad * 1.45 + barHeight * 1.8, barWidth, barHeight, state.dread / 100, "#ff4057");
+
+  const sealX = width - pad - layout.tile * 1.65;
+  const sealY = pad * 1.25;
+  ["mirror", "doll", "well"].forEach((seal, index) => {
+    const found = state.seals.has(seal);
+    const x = sealX - index * layout.tile * 0.62;
+    pixelRect(ctx, x, sealY, layout.tile * 0.42, layout.tile * 0.42, found ? "#d9a15f" : "rgba(246,222,192,0.16)");
+    ctx.fillStyle = found ? "#160b08" : "rgba(246,222,192,0.34)";
+    ctx.font = `${Math.max(12, layout.tile * 0.22)}px serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText({ mirror: "镜", doll: "偶", well: "井" }[seal], x + layout.tile * 0.21, sealY + layout.tile * 0.21);
+  });
+
+  if (state.log[0]) {
+    pixelRect(ctx, pad, height - pad - layout.tile * 0.58, Math.min(width - pad * 2, layout.tile * 7), layout.tile * 0.42, "rgba(0,0,0,0.5)");
+    ctx.fillStyle = "rgba(246,222,192,0.78)";
+    ctx.font = `${Math.max(11, layout.tile * 0.16)}px sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(state.log[0].slice(0, 28), pad * 1.35, height - pad - layout.tile * 0.36);
+  }
+}
+
+function drawCanvasBar(ctx, x, y, width, height, value, color) {
+  pixelRect(ctx, x, y, width, height, "rgba(246,222,192,0.16)");
+  pixelRect(ctx, x, y, width * clamp(value, 0, 1), height, color);
+  pixelRect(ctx, x, y + height - 2, width * clamp(value, 0, 1), 2, "rgba(0,0,0,0.25)");
 }
 
 function getNearbyProp() {
@@ -1292,6 +1389,44 @@ function getNearbyProp() {
     }
   });
   return nearest;
+}
+
+function getNearbyExit() {
+  const scene = scenes3d[state.room];
+  if (!scene) {
+    return null;
+  }
+  let nearest = null;
+  (scene.exits || []).forEach((exit) => {
+    const distance = Math.hypot(exit.x - scene3d.player.x, exit.y - scene3d.player.y);
+    if (distance <= 1.05 && (!nearest || distance < nearest.distance)) {
+      nearest = {
+        exit,
+        distance,
+        label: isExitEnabled(exit) ? `进入 ${rooms[exit.target].name}` : "锁住了",
+      };
+    }
+  });
+  return nearest;
+}
+
+function getNearbyTarget() {
+  const prop = getNearbyProp();
+  const exit = getNearbyExit();
+  if (prop && exit) {
+    return prop.distance <= exit.distance ? prop : exit;
+  }
+  return prop || exit;
+}
+
+function isExitEnabled(exit) {
+  const room = rooms[state.room];
+  const match = room?.exits.find(([target]) => target === exit.target);
+  if (!match) {
+    return false;
+  }
+  const enabledCheck = match[2];
+  return !enabledCheck || enabledCheck(state);
 }
 
 function getPropAction(prop) {
@@ -1333,13 +1468,23 @@ function getPropActionId(prop) {
   return null;
 }
 
-function interactWithNearbyProp() {
+function interactWithNearbyTarget() {
   if (!state.running || state.ritual.active) {
+    return;
+  }
+  const exit = getNearbyExit();
+  if (exit && (!getNearbyProp() || exit.distance <= getNearbyProp().distance)) {
+    if (!isExitEnabled(exit.exit)) {
+      game.log("这扇门还打不开。");
+      render();
+      return;
+    }
+    moveTo(exit.exit.target);
     return;
   }
   const nearby = getNearbyProp();
   if (!nearby?.action) {
-    game.log("你伸手摸了摸空气。这里没有可以调查的东西。");
+    game.log("附近没有可以调查的东西。");
     render();
     return;
   }
