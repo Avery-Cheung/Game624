@@ -369,6 +369,10 @@ h1 {
   transform: translate3d(0, 0, 0);
 }
 
+.has-touch-controls .touch-controls {
+  display: flex;
+}
+
 .scene {
   position: absolute;
   inset: 0;

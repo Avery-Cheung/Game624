@@ -559,6 +559,7 @@ function startGame() {
   dom.endingModal.classList.remove("is-visible");
   game.log("你推开第十三户的门。门在身后合上时，没有发出声音。");
   render();
+  focusGameControls();
   startTimers();
 }
 
@@ -661,9 +662,17 @@ function init3D() {
   }
 
   if (typeof window.addEventListener === "function") {
-    window.addEventListener("keydown", (event) => handle3DKey(event, true));
-    window.addEventListener("keyup", (event) => handle3DKey(event, false));
+    window.addEventListener("keydown", (event) => handle3DKey(event, true), true);
+    window.addEventListener("keyup", (event) => handle3DKey(event, false), true);
     window.addEventListener("resize", render3D);
+  }
+  if (typeof document.addEventListener === "function") {
+    document.addEventListener("keydown", (event) => handle3DKey(event, true), true);
+    document.addEventListener("keyup", (event) => handle3DKey(event, false), true);
+  }
+  if (dom.roomVisual && typeof dom.roomVisual.addEventListener === "function") {
+    dom.roomVisual.addEventListener("pointerdown", focusGameControls);
+    dom.roomVisual.addEventListener("touchstart", focusGameControls, { passive: true });
   }
 
   initTouchControls();
@@ -687,7 +696,7 @@ function start3DLoop() {
 }
 
 function handle3DKey(event, isDown) {
-  const key = event.key.toLowerCase();
+  const key = normalizeControlKey(event);
   const activeKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"]);
   if (!activeKeys.has(key)) {
     return;
@@ -702,10 +711,45 @@ function handle3DKey(event, isDown) {
   }
 }
 
+function normalizeControlKey(event) {
+  const key = String(event.key || "").toLowerCase();
+  const code = String(event.code || "").toLowerCase();
+  const aliases = {
+    keyw: "w",
+    keya: "a",
+    keys: "s",
+    keyd: "d",
+    arrowup: "arrowup",
+    arrowdown: "arrowdown",
+    arrowleft: "arrowleft",
+    arrowright: "arrowright",
+    up: "arrowup",
+    down: "arrowdown",
+    left: "arrowleft",
+    right: "arrowright",
+  };
+  return aliases[code] || aliases[key] || key;
+}
+
+function focusGameControls() {
+  const target = dom.roomVisual || scene3d.canvas;
+  if (target && typeof target.focus === "function") {
+    target.focus({ preventScroll: true });
+  }
+}
+
 function initTouchControls() {
+  if (isTouchCapableDevice()) {
+    document.documentElement?.classList?.add("has-touch-controls");
+  }
   bindTouchPad(dom.movePad, dom.moveKnob, "move");
   bindTouchPad(dom.lookPad, dom.lookKnob, "turn");
   bindViewportLookDrag();
+}
+
+function isTouchCapableDevice() {
+  const points = typeof navigator === "undefined" ? 0 : navigator.maxTouchPoints || navigator.msMaxTouchPoints || 0;
+  return points > 0 || (typeof window !== "undefined" && "ontouchstart" in window);
 }
 
 function bindTouchPad(pad, knob, type) {
@@ -717,14 +761,18 @@ function bindTouchPad(pad, knob, type) {
     if (typeof event.preventDefault === "function") {
       event.preventDefault();
     }
+    const point = getTouchPoint(event);
+    if (!point) {
+      return;
+    }
     const rect = typeof pad.getBoundingClientRect === "function"
       ? pad.getBoundingClientRect()
       : { left: 0, top: 0, width: 96, height: 96 };
     const radius = Math.max(1, Math.min(rect.width, rect.height) / 2);
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    const rawX = event.clientX - centerX;
-    const rawY = event.clientY - centerY;
+    const rawX = point.clientX - centerX;
+    const rawY = point.clientY - centerY;
     const distance = Math.min(radius, Math.hypot(rawX, rawY));
     const angle = Math.atan2(rawY, rawX);
     const x = Math.cos(angle) * distance;
@@ -766,6 +814,10 @@ function bindTouchPad(pad, knob, type) {
   pad.addEventListener("pointerup", reset);
   pad.addEventListener("pointercancel", reset);
   pad.addEventListener("lostpointercapture", reset);
+  pad.addEventListener("touchstart", update, { passive: false });
+  pad.addEventListener("touchmove", update, { passive: false });
+  pad.addEventListener("touchend", reset, { passive: false });
+  pad.addEventListener("touchcancel", reset, { passive: false });
 }
 
 function bindViewportLookDrag() {
@@ -778,6 +830,7 @@ function bindViewportLookDrag() {
     if (event.pointerType === "mouse") {
       return;
     }
+    focusGameControls();
     scene3d.touch.lookDragId = event.pointerId;
     scene3d.touch.lookDragX = event.clientX;
     if (typeof canvas.setPointerCapture === "function") {
@@ -807,6 +860,56 @@ function bindViewportLookDrag() {
   };
   canvas.addEventListener("pointerup", endDrag);
   canvas.addEventListener("pointercancel", endDrag);
+  canvas.addEventListener("touchstart", (event) => {
+    const point = getTouchPoint(event);
+    if (!point) {
+      return;
+    }
+    focusGameControls();
+    scene3d.touch.lookDragId = "touch";
+    scene3d.touch.lookDragX = point.clientX;
+  }, { passive: true });
+  canvas.addEventListener("touchmove", (event) => {
+    if (scene3d.touch.lookDragId !== "touch" || !state.running) {
+      return;
+    }
+    const point = getTouchPoint(event);
+    if (!point) {
+      return;
+    }
+    if (typeof event.preventDefault === "function") {
+      event.preventDefault();
+    }
+    const rect = typeof canvas.getBoundingClientRect === "function"
+      ? canvas.getBoundingClientRect()
+      : { width: 720 };
+    const deltaX = point.clientX - scene3d.touch.lookDragX;
+    scene3d.touch.lookDragX = point.clientX;
+    scene3d.player.angle += (deltaX / Math.max(1, rect.width)) * 2.8;
+  }, { passive: false });
+  canvas.addEventListener("touchend", () => {
+    if (scene3d.touch.lookDragId === "touch") {
+      scene3d.touch.lookDragId = null;
+    }
+  }, { passive: true });
+  canvas.addEventListener("touchcancel", () => {
+    if (scene3d.touch.lookDragId === "touch") {
+      scene3d.touch.lookDragId = null;
+    }
+  }, { passive: true });
+}
+
+function getTouchPoint(event) {
+  if (event.touches?.length) {
+    return event.touches[0];
+  }
+  if (event.changedTouches?.length) {
+    return event.changedTouches[0];
+  }
+  if (typeof event.clientX === "number" && typeof event.clientY === "number") {
+    return event;
+  }
+  return null;
 }
 
 function reset3DPlayer(roomName) {
