@@ -110,28 +110,31 @@ button {
   position: relative;
   z-index: 2;
   display: grid;
-  width: min(1440px, 100%);
+  width: min(1800px, 100%);
   min-height: 100vh;
   margin: 0 auto;
-  padding: clamp(0.85rem, 2vw, 1.5rem);
-  gap: 1rem;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: clamp(0.45rem, 1vw, 0.85rem);
+  gap: 0.55rem;
 }
 
 .hero {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0.45rem;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.9rem;
   min-height: auto;
-  padding: clamp(1rem, 2.2vw, 1.5rem);
+  padding: 0.62rem 0.85rem;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(100deg, rgba(246, 222, 192, 0.08), transparent 36%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.005)),
     rgba(10, 8, 12, 0.72);
-  box-shadow: 0 1.4rem 4rem var(--shadow);
+  box-shadow: 0 0.8rem 2rem var(--shadow);
   backdrop-filter: blur(18px);
 }
 
@@ -142,7 +145,7 @@ button {
   top: 50%;
   color: rgba(179, 38, 53, 0.18);
   font-family: var(--mono);
-  font-size: clamp(4rem, 12vw, 8.5rem);
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
   font-weight: 900;
   line-height: 1;
   transform: translateY(-50%) rotate(-6deg);
@@ -154,7 +157,7 @@ button {
   margin: 0;
   color: var(--amber);
   font-family: var(--mono);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.32em;
   text-transform: uppercase;
@@ -171,7 +174,7 @@ h1 {
   width: fit-content;
   color: #fff7eb;
   font-family: var(--serif);
-  font-size: clamp(2rem, 5.6vw, 5.25rem);
+  font-size: clamp(1.45rem, 3vw, 2.6rem);
   line-height: 0.95;
   letter-spacing: 0.08em;
   text-shadow:
@@ -182,17 +185,21 @@ h1 {
 .tagline {
   position: relative;
   z-index: 1;
-  max-width: 760px;
-  margin: 0;
+  justify-self: end;
+  margin: 0 4.8rem 0 0;
   color: var(--ink-soft);
-  font-size: clamp(0.92rem, 1.5vw, 1.08rem);
-  line-height: 1.75;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
 }
 
 .game-panel {
   display: grid;
-  grid-template-columns: minmax(220px, 0.72fr) minmax(440px, 1.9fr) minmax(260px, 0.86fr);
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 260px);
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  gap: 0.55rem;
   align-items: stretch;
 }
 
@@ -214,13 +221,15 @@ h1 {
 .status-card,
 .journal-card {
   display: flex;
-  min-height: 670px;
+  min-height: 0;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 0.55rem;
+  padding: 0.65rem;
 }
 
 .status-card {
+  grid-column: 2;
+  grid-row: 1;
   background:
     linear-gradient(180deg, rgba(179, 38, 53, 0.12), transparent 42%),
     var(--panel);
@@ -230,7 +239,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 6rem;
+  min-height: 3.8rem;
   border: 1px solid rgba(255, 64, 87, 0.22);
   border-radius: var(--radius-lg);
   color: #fff4e2;
@@ -238,7 +247,7 @@ h1 {
     radial-gradient(circle at 50% 20%, rgba(255, 64, 87, 0.18), transparent 62%),
     rgba(0, 0, 0, 0.3);
   font-family: var(--mono);
-  font-size: clamp(2.5rem, 5vw, 4.2rem);
+  font-size: clamp(1.85rem, 3vw, 2.45rem);
   font-weight: 900;
   letter-spacing: 0.06em;
   text-shadow: 0 0 1.2rem rgba(255, 64, 87, 0.4);
@@ -250,8 +259,8 @@ h1 {
 
 .meter {
   display: grid;
-  gap: 0.55rem;
-  padding: 0.85rem;
+  gap: 0.36rem;
+  padding: 0.55rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: rgba(0, 0, 0, 0.22);
@@ -263,7 +272,7 @@ h1 {
   justify-content: space-between;
   gap: 1rem;
   color: var(--ink-soft);
-  font-size: 0.84rem;
+  font-size: 0.72rem;
 }
 
 .meter-label strong {
@@ -300,13 +309,13 @@ h1 {
 .seal-board {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.65rem;
+  gap: 0.38rem;
 }
 
 .seal {
   position: relative;
   display: grid;
-  min-height: 5.2rem;
+  min-height: 3.25rem;
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(246, 222, 192, 0.12);
@@ -314,7 +323,7 @@ h1 {
   color: rgba(246, 222, 192, 0.26);
   background: rgba(0, 0, 0, 0.24);
   font-family: var(--serif);
-  font-size: 1.65rem;
+  font-size: 1.1rem;
   font-weight: 900;
 }
 
@@ -356,8 +365,8 @@ h1 {
 
 .primary,
 .secondary {
-  min-height: 3.1rem;
-  padding: 0.85rem 1.05rem;
+  min-height: 2.5rem;
+  padding: 0.6rem 0.75rem;
   font-weight: 800;
 }
 
@@ -399,14 +408,17 @@ h1 {
 }
 
 .room-card {
+  grid-column: 1;
+  grid-row: 1 / span 2;
   display: grid;
-  grid-template-rows: minmax(470px, 1fr) auto auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  min-height: calc(100vh - 5.4rem);
   overflow: hidden;
 }
 
 .room-visual {
   position: relative;
-  min-height: 470px;
+  min-height: 0;
   overflow: hidden;
   border: 0;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
@@ -661,8 +673,9 @@ h1 {
 
 .room-copy {
   display: grid;
-  gap: 0.55rem;
-  padding: 1rem 1.1rem 0.85rem;
+  gap: 0.25rem;
+  min-height: 0;
+  padding: 0.55rem 0.75rem 0.45rem;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.026), transparent),
     rgba(0, 0, 0, 0.18);
@@ -671,22 +684,26 @@ h1 {
 .room-copy p {
   margin: 0;
   color: var(--ink-soft);
-  line-height: 1.7;
+  overflow: hidden;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
 }
 
 .whisper {
-  min-height: 1.6em;
+  min-height: 1.2em;
   color: #ff8d9a !important;
   font-family: var(--mono);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   letter-spacing: 0.04em;
 }
 
 .action-grid,
 .exit-grid {
   display: grid;
-  gap: 0.7rem;
-  padding: 0 1rem 1rem;
+  gap: 0.42rem;
+  padding: 0 0.65rem 0.65rem;
 }
 
 .action-grid {
@@ -700,10 +717,10 @@ h1 {
 
 .action-grid button,
 .exit-grid button {
-  min-height: 3.25rem;
-  padding: 0.72rem 0.85rem;
+  min-height: 2.5rem;
+  padding: 0.52rem 0.62rem;
   text-align: left;
-  font-size: 0.92rem;
+  font-size: 0.8rem;
 }
 
 .action-grid button {
@@ -716,6 +733,8 @@ h1 {
 }
 
 .journal-card {
+  grid-column: 2;
+  grid-row: 2;
   background:
     linear-gradient(180deg, rgba(217, 161, 95, 0.08), transparent 40%),
     var(--panel);
@@ -725,17 +744,17 @@ h1 {
   margin: 0;
   color: #fff3df;
   font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: 0.66rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .log-list {
   display: flex;
-  max-height: 430px;
+  max-height: none;
   flex: 1;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.42rem;
   margin: 0;
   padding: 0;
   overflow: auto;
@@ -747,27 +766,31 @@ h1 {
   border: 1px solid rgba(246, 222, 192, 0.1);
   border-left: 3px solid rgba(217, 161, 95, 0.58);
   border-radius: var(--radius-md);
-  padding: 0.65rem 0.72rem;
+  display: -webkit-box;
+  overflow: hidden;
+  padding: 0.48rem 0.55rem;
   color: var(--ink-soft);
   background: rgba(0, 0, 0, 0.24);
-  font-size: 0.88rem;
-  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .inventory {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  min-height: 2.5rem;
+  gap: 0.35rem;
+  min-height: 2rem;
 }
 
 .inventory span {
   border: 1px solid rgba(246, 222, 192, 0.14);
   border-radius: 999px;
-  padding: 0.42rem 0.64rem;
+  padding: 0.3rem 0.45rem;
   color: #f1ddc4;
   background: rgba(0, 0, 0, 0.26);
-  font-size: 0.82rem;
+  font-size: 0.7rem;
 }
 
 .modal {
@@ -842,16 +865,38 @@ h1 {
 
 @media (max-width: 1180px) {
   .game-panel {
-    grid-template-columns: minmax(220px, 0.7fr) minmax(420px, 1.5fr);
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .room-card {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: calc(100vh - 5rem);
+  }
+
+  .status-card {
+    grid-column: 1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: minmax(130px, 0.8fr) repeat(2, minmax(150px, 1fr)) minmax(150px, 0.8fr) auto;
+    align-items: stretch;
+  }
+
+  .clock,
+  .seal-board,
+  .secondary {
+    grid-column: auto;
   }
 
   .journal-card {
-    grid-column: 1 / -1;
+    grid-column: 1;
+    grid-row: 3;
     min-height: auto;
   }
 
   .log-list {
-    max-height: 220px;
+    max-height: 120px;
   }
 }
 
@@ -886,12 +931,13 @@ h1 {
   }
 
   .room-card {
-    grid-template-rows: minmax(360px, 58vh) auto auto auto;
+    min-height: auto;
+    grid-template-rows: minmax(520px, 70vh) auto auto auto;
     border-radius: var(--radius-lg);
   }
 
   .room-visual {
-    min-height: 360px;
+    min-height: 520px;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 
@@ -908,10 +954,18 @@ h1 {
 
   .hero {
     padding: 0.9rem;
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 8vw, 2.4rem);
   }
 
   .tagline {
-    font-size: 0.9rem;
+    justify-self: start;
+    margin: 0;
+    font-size: 0.68rem;
   }
 
   .status-card {
@@ -925,11 +979,11 @@ h1 {
   }
 
   .room-card {
-    grid-template-rows: minmax(330px, 62vh) auto auto auto;
+    grid-template-rows: minmax(460px, 66vh) auto auto auto;
   }
 
   .room-visual {
-    min-height: 330px;
+    min-height: 460px;
   }
 
   .hud-3d {

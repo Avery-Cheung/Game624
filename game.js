@@ -1005,6 +1005,7 @@ function render3D() {
   resize3DCanvas();
   const ctx = scene3d.ctx;
   const { canvas } = scene3d;
+  ctx.imageSmoothingEnabled = false;
   const width = canvas.width;
   const height = canvas.height;
   if (!width || !height) {
@@ -1039,46 +1040,52 @@ function worldToScreen(layout, x, y) {
   };
 }
 
-function drawTopdownBackground(ctx, scene, width, height) {
-  const gradient = ctx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, "#08060a");
-  gradient.addColorStop(0.46, scene.ceiling);
-  gradient.addColorStop(1, "#020203");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
+function pixelRect(ctx, x, y, width, height, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(x), Math.round(y), Math.round(width), Math.round(height));
+}
 
+function drawTopdownBackground(ctx, scene, width, height) {
+  pixelRect(ctx, 0, 0, width, height, "#050407");
+  const block = Math.max(8, Math.floor(width / 80));
+  for (let y = 0; y < height; y += block) {
+    for (let x = 0; x < width; x += block) {
+      const shade = ((x / block + y / block) % 5 === 0) ? "rgba(255, 255, 255, 0.018)" : "rgba(0, 0, 0, 0.08)";
+      pixelRect(ctx, x, y, block, block, shade);
+    }
+  }
   ctx.fillStyle = scene.fog;
   ctx.fillRect(0, 0, width, height);
 }
 
 function drawTopdownMap(ctx, scene, layout) {
   const { tile, mapWidth, mapHeight, originX, originY } = layout;
-  ctx.save();
-  ctx.shadowBlur = tile * 0.45;
-  ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
-  ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
-  ctx.fillRect(originX - tile * 0.38, originY - tile * 0.38, mapWidth * tile + tile * 0.76, mapHeight * tile + tile * 0.76);
-  ctx.restore();
+  pixelRect(ctx, originX - tile * 0.38, originY - tile * 0.38, mapWidth * tile + tile * 0.76, mapHeight * tile + tile * 0.76, "rgba(0, 0, 0, 0.55)");
 
   for (let y = 0; y < mapHeight; y += 1) {
     for (let x = 0; x < mapWidth; x += 1) {
       const screenX = originX + x * tile;
       const screenY = originY + y * tile;
       const isWall = scene.map[y][x] !== "0";
+      const pixel = Math.max(3, Math.floor(tile / 9));
       if (isWall) {
-        ctx.fillStyle = scene.wall;
-        ctx.fillRect(screenX, screenY, tile, tile);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.38)";
-        ctx.fillRect(screenX, screenY + tile * 0.72, tile, tile * 0.28);
-        ctx.strokeStyle = "rgba(246, 222, 192, 0.08)";
-        ctx.strokeRect(screenX + 0.5, screenY + 0.5, tile - 1, tile - 1);
+        pixelRect(ctx, screenX, screenY, tile, tile, scene.wall);
+        pixelRect(ctx, screenX, screenY + tile * 0.68, tile, tile * 0.32, "rgba(0, 0, 0, 0.38)");
+        pixelRect(ctx, screenX + pixel, screenY + pixel, tile - pixel * 2, pixel, "rgba(246, 222, 192, 0.08)");
+        if ((x + y) % 2 === 0) {
+          pixelRect(ctx, screenX + tile * 0.14, screenY + tile * 0.28, tile * 0.54, pixel, "rgba(0, 0, 0, 0.22)");
+        }
+        if ((x * 3 + y) % 5 === 0) {
+          pixelRect(ctx, screenX + tile * 0.62, screenY + tile * 0.18, pixel, tile * 0.52, "rgba(179, 38, 53, 0.22)");
+        }
       } else {
-        ctx.fillStyle = scene.floor;
-        ctx.fillRect(screenX, screenY, tile, tile);
-        ctx.fillStyle = ((x + y) % 2 === 0) ? "rgba(255, 255, 255, 0.025)" : "rgba(0, 0, 0, 0.08)";
-        ctx.fillRect(screenX, screenY, tile, tile);
-        ctx.strokeStyle = "rgba(246, 222, 192, 0.035)";
-        ctx.strokeRect(screenX + 0.5, screenY + 0.5, tile - 1, tile - 1);
+        pixelRect(ctx, screenX, screenY, tile, tile, scene.floor);
+        pixelRect(ctx, screenX, screenY, tile, tile, ((x + y) % 2 === 0) ? "rgba(255, 255, 255, 0.025)" : "rgba(0, 0, 0, 0.08)");
+        pixelRect(ctx, screenX, screenY, tile, pixel, "rgba(246, 222, 192, 0.035)");
+        pixelRect(ctx, screenX, screenY, pixel, tile, "rgba(246, 222, 192, 0.025)");
+        if ((x * 7 + y * 11) % 9 === 0) {
+          pixelRect(ctx, screenX + tile * 0.25, screenY + tile * 0.45, pixel * 2, pixel, "rgba(217, 161, 95, 0.16)");
+        }
       }
     }
   }
@@ -1095,12 +1102,10 @@ function drawTopdownProp(ctx, prop, layout) {
   const point = worldToScreen(layout, prop.x, prop.y);
   const size = layout.tile * (prop.size || 1) * 0.56;
   const nearby = getNearbyProp()?.prop === prop;
+  const px = Math.max(3, Math.floor(layout.tile / 10));
 
   ctx.save();
   ctx.translate(point.x, point.y);
-  ctx.shadowColor = nearby ? "rgba(217, 161, 95, 0.65)" : "rgba(0, 0, 0, 0.55)";
-  ctx.shadowBlur = nearby ? size * 0.55 : size * 0.22;
-
   const colors = {
     door: "#3a1d22",
     plate: "#5b3724",
@@ -1122,48 +1127,70 @@ function drawTopdownProp(ctx, prop, layout) {
   };
 
   ctx.fillStyle = colors[prop.type] || "#6a4b3e";
+  pixelRect(ctx, -size * 0.45, size * 0.32, size * 0.9, px * 2, "rgba(0, 0, 0, 0.36)");
   if (prop.type === "salt") {
-    ctx.strokeStyle = colors.salt;
-    ctx.lineWidth = Math.max(2, layout.tile * 0.045);
-    ctx.setLineDash([layout.tile * 0.16, layout.tile * 0.1]);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, size * 0.85, size * 0.36, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    for (let i = 0; i < 18; i += 1) {
+      const angle = (i / 18) * Math.PI * 2;
+      pixelRect(ctx, Math.cos(angle) * size * 0.72, Math.sin(angle) * size * 0.34, px, px, colors.salt);
+    }
   } else if (prop.type === "well") {
-    ctx.beginPath();
-    ctx.ellipse(0, 0, size * 0.8, size * 0.58, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#020202";
-    ctx.beginPath();
-    ctx.ellipse(0, 0, size * 0.48, size * 0.31, 0, 0, Math.PI * 2);
-    ctx.fill();
+    pixelRect(ctx, -size * 0.62, -size * 0.28, size * 1.24, size * 0.56, colors.well);
+    pixelRect(ctx, -size * 0.42, -size * 0.16, size * 0.84, size * 0.32, "#020202");
+    pixelRect(ctx, -size * 0.58, -size * 0.34, px * 2, size * 0.68, "rgba(246, 222, 192, 0.18)");
   } else if (prop.type === "shadow") {
-    ctx.beginPath();
-    ctx.ellipse(0, 0, size * 0.34, size * 0.62, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "rgba(255, 245, 220, 0.52)";
-    ctx.fillRect(-size * 0.12, -size * 0.2, size * 0.08, size * 0.05);
-    ctx.fillRect(size * 0.05, -size * 0.2, size * 0.08, size * 0.05);
+    pixelRect(ctx, -size * 0.16, -size * 0.52, size * 0.32, size * 0.94, colors.shadow);
+    pixelRect(ctx, -size * 0.28, -size * 0.18, size * 0.56, size * 0.42, "rgba(0, 0, 0, 0.72)");
+    pixelRect(ctx, -size * 0.1, -size * 0.28, px, px, "rgba(255, 245, 220, 0.58)");
+    pixelRect(ctx, size * 0.08, -size * 0.28, px, px, "rgba(255, 245, 220, 0.58)");
   } else {
-    ctx.beginPath();
-    ctx.rect(-size * 0.5, -size * 0.42, size, size * 0.84);
-    ctx.fill();
-    ctx.strokeStyle = nearby ? "rgba(255, 239, 179, 0.92)" : "rgba(246, 222, 192, 0.18)";
-    ctx.lineWidth = Math.max(1, layout.tile * 0.025);
-    ctx.stroke();
-    drawTopdownPropGlyph(ctx, prop, size);
+    drawPixelPropSprite(ctx, prop, size, px, colors[prop.type] || "#6a4b3e");
   }
 
   if (nearby) {
-    ctx.strokeStyle = "rgba(255, 239, 179, 0.9)";
-    ctx.lineWidth = Math.max(1, layout.tile * 0.035);
-    ctx.beginPath();
-    ctx.arc(0, 0, size * 0.82, 0, Math.PI * 2);
-    ctx.stroke();
+    pixelRect(ctx, -size * 0.68, -size * 0.62, size * 1.36, px, "rgba(255, 239, 179, 0.88)");
+    pixelRect(ctx, -size * 0.68, size * 0.58, size * 1.36, px, "rgba(255, 239, 179, 0.88)");
+    pixelRect(ctx, -size * 0.72, -size * 0.58, px, size * 1.16, "rgba(255, 239, 179, 0.88)");
+    pixelRect(ctx, size * 0.68, -size * 0.58, px, size * 1.16, "rgba(255, 239, 179, 0.88)");
   }
 
   ctx.restore();
+}
+
+function drawPixelPropSprite(ctx, prop, size, px, color) {
+  if (prop.type === "door") {
+    pixelRect(ctx, -size * 0.38, -size * 0.58, size * 0.76, size * 1.05, "#2a1117");
+    pixelRect(ctx, -size * 0.28, -size * 0.46, size * 0.56, size * 0.82, color);
+    pixelRect(ctx, size * 0.18, -size * 0.05, px * 1.5, px * 1.5, "#e0ac62");
+    drawTopdownPropGlyph(ctx, prop, size);
+    return;
+  }
+  if (prop.type === "lamp") {
+    const lit = state.flags.has("archiveLit");
+    pixelRect(ctx, -px, -size * 0.5, px * 2, size, "#2b2016");
+    pixelRect(ctx, -size * 0.24, -size * 0.44, size * 0.48, size * 0.28, lit ? "#f0bd57" : color);
+    if (lit) {
+      pixelRect(ctx, -size * 0.42, -size * 0.56, size * 0.84, px, "rgba(255, 225, 138, 0.55)");
+      pixelRect(ctx, -size * 0.34, -size * 0.18, size * 0.68, px, "rgba(255, 225, 138, 0.35)");
+    }
+    return;
+  }
+  if (prop.type === "fridge" && state.flags.has("openedFridge")) {
+    pixelRect(ctx, -size * 0.42, -size * 0.52, size * 0.55, size * 0.95, "#30413a");
+    pixelRect(ctx, size * 0.05, -size * 0.5, size * 0.42, size * 0.92, "#a7f4d4");
+    pixelRect(ctx, size * 0.12, -size * 0.38, size * 0.24, px * 2, "#e7fff2");
+    return;
+  }
+  if (prop.type === "doll") {
+    pixelRect(ctx, -size * 0.16, -size * 0.5, size * 0.32, size * 0.28, color);
+    pixelRect(ctx, -size * 0.24, -size * 0.2, size * 0.48, size * 0.54, "#4a2740");
+    pixelRect(ctx, -size * 0.08, -size * 0.42, px, px, "#050505");
+    pixelRect(ctx, size * 0.07, -size * 0.42, px, px, "#050505");
+    return;
+  }
+  pixelRect(ctx, -size * 0.48, -size * 0.38, size * 0.96, size * 0.76, color);
+  pixelRect(ctx, -size * 0.38, -size * 0.28, size * 0.76, px * 1.4, "rgba(255, 255, 255, 0.12)");
+  pixelRect(ctx, -size * 0.48, size * 0.28, size * 0.96, px * 2, "rgba(0, 0, 0, 0.25)");
+  drawTopdownPropGlyph(ctx, prop, size);
 }
 
 function drawTopdownPropGlyph(ctx, prop, size) {
@@ -1198,31 +1225,27 @@ function drawTopdownPlayer(ctx, layout) {
   const point = worldToScreen(layout, scene3d.player.x, scene3d.player.y);
   const size = layout.tile * 0.36;
   const pulse = Math.sin(Date.now() / 180) * layout.tile * 0.025;
+  const px = Math.max(3, Math.floor(layout.tile / 10));
 
   ctx.save();
   ctx.translate(point.x, point.y + pulse);
-  ctx.shadowColor = "rgba(217, 161, 95, 0.45)";
-  ctx.shadowBlur = size * 0.9;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
-  ctx.beginPath();
-  ctx.ellipse(0, size * 0.55, size * 0.78, size * 0.28, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#eed7b7";
-  ctx.beginPath();
-  ctx.arc(0, -size * 0.48, size * 0.34, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#67202a";
-  ctx.beginPath();
-  ctx.rect(-size * 0.42, -size * 0.14, size * 0.84, size * 0.82);
-  ctx.fill();
-
-  ctx.strokeStyle = "rgba(255, 239, 179, 0.75)";
-  ctx.lineWidth = Math.max(2, layout.tile * 0.035);
-  ctx.beginPath();
-  ctx.moveTo(0, -size * 0.08);
-  ctx.lineTo(scene3d.player.facingX * size * 0.9, scene3d.player.facingY * size * 0.9 - size * 0.08);
-  ctx.stroke();
+  pixelRect(ctx, -size * 0.56, size * 0.5, size * 1.12, px * 2, "rgba(0, 0, 0, 0.34)");
+  pixelRect(ctx, -size * 0.28, -size * 0.72, size * 0.56, size * 0.38, "#f0d5b0");
+  pixelRect(ctx, -size * 0.36, -size * 0.32, size * 0.72, size * 0.78, "#7e2631");
+  pixelRect(ctx, -size * 0.5, -size * 0.22, size * 0.18, size * 0.48, "#4d151c");
+  pixelRect(ctx, size * 0.32, -size * 0.22, size * 0.18, size * 0.48, "#4d151c");
+  pixelRect(ctx, -size * 0.28, size * 0.42, size * 0.2, size * 0.28, "#211317");
+  pixelRect(ctx, size * 0.08, size * 0.42, size * 0.2, size * 0.28, "#211317");
+  pixelRect(ctx, -size * 0.12, -size * 0.58, px, px, "#13090b");
+  pixelRect(ctx, size * 0.08, -size * 0.58, px, px, "#13090b");
+  pixelRect(
+    ctx,
+    scene3d.player.facingX * size * 0.42 - px / 2,
+    scene3d.player.facingY * size * 0.42 - px / 2,
+    px,
+    px,
+    "#ffe7a0"
+  );
   ctx.restore();
 }
 
