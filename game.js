@@ -316,6 +316,15 @@ const dom = {
   endingText: document.getElementById("endingText"),
 };
 
+const roomVisualClasses = Object.keys(rooms).map((room) => `scene-${room}`);
+const flagVisualClasses = [
+  "archiveLit",
+  "foundMirror",
+  "openedFridge",
+  "foundDoll",
+  "saltCircle",
+];
+
 let state = createInitialState();
 let tickTimer = null;
 let hauntTimer = null;
@@ -464,6 +473,7 @@ function render() {
   dom.roomName.textContent = room.name;
   dom.roomDescription.textContent = room.description(state);
   dom.whisperLine.textContent = randomFrom(room.whispers);
+  renderVisualState();
   dom.roomVisual.style.setProperty("--room-bg", room.bg);
   dom.roomVisual.style.setProperty("--lamp-x", room.lamp[0]);
   dom.roomVisual.style.setProperty("--lamp-y", room.lamp[1]);
@@ -475,6 +485,19 @@ function render() {
   renderInventory();
   renderSeals();
   renderLog();
+}
+
+function renderVisualState() {
+  roomVisualClasses.forEach((className) => {
+    dom.roomVisual.classList.remove(className);
+  });
+  dom.roomVisual.classList.add(`scene-${state.room}`);
+
+  flagVisualClasses.forEach((flagName) => {
+    dom.roomVisual.classList.toggle(`visual-${flagName}`, state.flags.has(flagName));
+  });
+  dom.roomVisual.classList.toggle("visual-ritual-active", state.ritual.active);
+  dom.roomVisual.classList.toggle("visual-haunted", state.dread > 58 || state.battery < 18);
 }
 
 function renderActions(room) {
