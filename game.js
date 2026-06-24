@@ -772,6 +772,7 @@ function initTouchControls() {
   }
   bindTouchPad(dom.movePad, dom.moveKnob, "move");
   bindActionPad(dom.lookPad, dom.lookKnob);
+  bindCanvasTapInteraction();
 }
 
 function isTouchCapableDevice() {
@@ -870,6 +871,39 @@ function bindActionPad(pad, knob) {
   pad.addEventListener("touchstart", press, { passive: false });
   pad.addEventListener("touchend", reset, { passive: false });
   pad.addEventListener("touchcancel", reset, { passive: false });
+}
+
+function bindCanvasTapInteraction() {
+  const canvas = scene3d.canvas;
+  if (!canvas || typeof canvas.addEventListener !== "function") {
+    return;
+  }
+
+  const tap = (event) => {
+    const point = getTouchPoint(event);
+    if (!point || !state.running) {
+      return;
+    }
+    if (typeof event.preventDefault === "function") {
+      event.preventDefault();
+    }
+    focusGameControls();
+    const target = getTargetAtCanvasPoint(point.clientX, point.clientY);
+    if (target) {
+      interactWithTarget(target);
+      return;
+    }
+    const nearest = getNearbyTarget(2.25);
+    if (nearest) {
+      interactWithTarget(nearest);
+    } else {
+      game.log("点按发出轻响，黑暗没有回应。");
+      render();
+    }
+  };
+
+  canvas.addEventListener("click", tap);
+  canvas.addEventListener("touchend", tap, { passive: false });
 }
 
 function bindViewportLookDrag() {
@@ -1062,10 +1096,33 @@ function getTopdownLayout(scene, width, height) {
   };
 }
 
+function getCurrentTopdownLayout() {
+  const scene = scenes3d[state.room];
+  const canvas = scene3d.canvas;
+  if (!scene || !canvas) {
+    return null;
+  }
+  return getTopdownLayout(scene, canvas.width || 1280, canvas.height || 800);
+}
+
 function worldToScreen(layout, x, y) {
   return {
     x: layout.originX + x * layout.tile,
     y: layout.originY + y * layout.tile,
+  };
+}
+
+function clientToCanvasPoint(clientX, clientY) {
+  const canvas = scene3d.canvas;
+  if (!canvas || typeof canvas.getBoundingClientRect !== "function") {
+    return null;
+  }
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = (canvas.width || rect.width) / Math.max(1, rect.width);
+  const scaleY = (canvas.height || rect.height) / Math.max(1, rect.height);
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY,
   };
 }
 
@@ -1364,6 +1421,12 @@ function drawCanvasStatusHud(ctx, width, height, layout) {
     ctx.textBaseline = "middle";
     ctx.fillText(state.log[0].slice(0, 28), pad * 1.35, height - pad - layout.tile * 0.36);
   }
+
+  ctx.fillStyle = "rgba(246,222,192,0.48)";
+  ctx.font = `${Math.max(10, layout.tile * 0.14)}px sans-serif`;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillText("点按物体/门调查", width - pad, height - pad - layout.tile * 0.28);
 }
 
 function drawCanvasBar(ctx, x, y, width, height, value, color) {
@@ -1372,7 +1435,7 @@ function drawCanvasBar(ctx, x, y, width, height, value, color) {
   pixelRect(ctx, x, y + height - 2, width * clamp(value, 0, 1), 2, "rgba(0,0,0,0.25)");
 }
 
-function getNearbyProp() {
+function getNearbyProp(radius = 1.65) {
   const scene = scenes3d[state.room];
   if (!scene) {
     return null;
@@ -1384,14 +1447,14 @@ function getNearbyProp() {
       return;
     }
     const distance = Math.hypot(prop.x - scene3d.player.x, prop.y - scene3d.player.y);
-    if (distance <= 1.18 && (!nearest || distance < nearest.distance)) {
+    if (distance <= radius && (!nearest || distance < nearest.distance)) {
       nearest = { prop, action, distance, label: action.label };
     }
   });
   return nearest;
 }
 
-function getNearbyExit() {
+function getNearbyExit(radius = 1.45) {
   const scene = scenes3d[state.room];
   if (!scene) {
     return null;
@@ -1399,7 +1462,7 @@ function getNearbyExit() {
   let nearest = null;
   (scene.exits || []).forEach((exit) => {
     const distance = Math.hypot(exit.x - scene3d.player.x, exit.y - scene3d.player.y);
-    if (distance <= 1.05 && (!nearest || distance < nearest.distance)) {
+    if (distance <= radius && (!nearest || distance < nearest.distance)) {
       nearest = {
         exit,
         distance,
@@ -1410,13 +1473,45 @@ function getNearbyExit() {
   return nearest;
 }
 
-function getNearbyTarget() {
-  const prop = getNearbyProp();
-  const exit = getNearbyExit();
+function getNearbyTarget(radius = 1.65) {
+  const prop = getNearbyProp(radius);
+  const exit = getNearbyExit(radius);
   if (prop && exit) {
     return prop.distance <= exit.distance ? prop : exit;
   }
   return prop || exit;
+}
+
+function getTargetAtCanvasPoint(clientX, clientY) {
+  const scene = scenes3d[state.room];
+  const layout = getCurrentTopdownLayout();
+  const point = clientToCanvasPoint(clientX, clientY);
+  if (!scene || !layout || !point) {
+    return null;
+  }
+
+  let nearest = null;
+  const consider = (target, worldX, worldY, baseRadius) => {
+    const screen = worldToScreen(layout, worldX, worldY);
+    const distance = Math.hypot(screen.x - point.x, screen.y - point.y);
+    const hitRadius = Math.max(layout.tile * baseRadius, 34);
+    if (distance <= hitRadius && (!nearest || distance < nearest.screenDistance)) {
+      nearest = { ...target, screenDistance: distance };
+    }
+  };
+
+  getVisible3DProps(scene).forEach((prop) => {
+    const action = getPropAction(prop);
+    if (action) {
+      consider({ prop, action, distance: 0, label: action.label }, prop.x, prop.y, 0.75 * (prop.size || 1));
+    }
+  });
+
+  (scene.exits || []).forEach((exit) => {
+    consider({ exit, distance: 0, label: isExitEnabled(exit) ? `进入 ${rooms[exit.target].name}` : "锁住了" }, exit.x, exit.y, 0.82);
+  });
+
+  return nearest;
 }
 
 function isExitEnabled(exit) {
@@ -1472,19 +1567,32 @@ function interactWithNearbyTarget() {
   if (!state.running || state.ritual.active) {
     return;
   }
-  const exit = getNearbyExit();
-  if (exit && (!getNearbyProp() || exit.distance <= getNearbyProp().distance)) {
-    if (!isExitEnabled(exit.exit)) {
+  const target = getNearbyTarget(1.85) || getNearbyTarget(2.65);
+  if (!target) {
+    game.log("附近没有可以调查的东西。");
+    render();
+    return;
+  }
+  interactWithTarget(target);
+}
+
+function interactWithTarget(target) {
+  if (!state.running || state.ritual.active) {
+    return;
+  }
+  if (target.exit) {
+    if (!isExitEnabled(target.exit)) {
       game.log("这扇门还打不开。");
       render();
       return;
     }
-    moveTo(exit.exit.target);
+    moveTo(target.exit.target);
     return;
   }
-  const nearby = getNearbyProp();
+
+  const nearby = target;
   if (!nearby?.action) {
-    game.log("附近没有可以调查的东西。");
+    game.log("这里没有可以调查的东西。");
     render();
     return;
   }
