@@ -19,4 +19,15 @@ python3 -m http.server 8000
 ```
 
 然后访问 <http://localhost:8000>。
-# Game624
+
+## 部署到 GitHub Pages
+
+仓库已包含 `.github/workflows/deploy-pages.yml`。合并到 `main` 后，workflow 会把 `index.html`、`styles.css`、`game.js` 和 `README.md` 打包并部署到 GitHub Pages。
+
+如果第一次部署提示 Pages 未启用，请仓库管理员在 GitHub 仓库页面执行：
+
+1. 打开 **Settings -> Pages**。
+2. 将 **Build and deployment -> Source** 设置为 **GitHub Actions**。
+3. 回到 **Actions** 页面，重新运行 `Deploy web game to GitHub Pages`。
+
+默认访问地址通常是 <https://avery-cheung.github.io/Game624/>。

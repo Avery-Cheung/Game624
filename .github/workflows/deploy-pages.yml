@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - cursor/web-horror-game-f860
   workflow_dispatch:
 
 permissions:
